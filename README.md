@@ -6,7 +6,7 @@ Status: in progress. The specification has not yet been approved by a reviewer a
 
 ## What is proved
 
-The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`, and the proofs in `Proofs/`. Together they fix every output: the encoders and the checksum are given exactly, and each decoder accepts exactly the outputs of its encoder (for hex, up to ASCII case) and returns the matching input.
+The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`, and the proofs in `Proofs/`. Together they fix every output: the encoders and the checksum are given exactly. The hex and base 64 decoders and unframing accept exactly the outputs of their encoder or of framing (for hex, up to ASCII case) and return the matching input. The percent-decoder accepts more than the encoder writes, such as reserved characters as they are and escapes in lowercase, and `Spec.PctReads` gives exactly what it accepts and what each text reads as.
 
 | Claim | Theorem |
 |-------|---------|
@@ -26,9 +26,9 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`,
 | Unframing a frame gives back the message. | `Spec.unframe_frame` |
 | Unframing accepts nothing that is not a frame. | `Spec.frame_unframe` |
 | Percent-encoding keeps the unreserved characters of RFC 3986, section 2.3, and writes every other byte as `%` and two uppercase digits, as section 2.1 recommends. | `Spec.percent_encode_eq` |
-| Percent-decoding reads exactly the text that section 2.1 allows: `%` and two hex digits in either case as one byte, and any other US-ASCII character but `%` as itself. It refuses a `%` without two hex digits after it, and any character outside US-ASCII, rather than passing them through. | `Spec.percent_decode_iff` |
+| Percent-decoding reads `%` and two hex digits (the `pct-encoded` rule of section 2.1), in either case, as one byte, and any other US-ASCII character but `%` as itself. It does not check which characters a URI allows, so a space or a control character reads as itself. It refuses a `%` without two hex digits after it, and any character outside US-ASCII, rather than passing them through. | `Spec.percent_decode_iff` |
 | Percent-decoding gives back what was encoded. | `Spec.percent_decode_encode` |
-| Percent-encoding matches the examples of RFC 3986, and decodes once: `%252E` decodes to the text `%2E`, not to a dot. | `Spec.percent_vectors` |
+| Percent-encoding matches the examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2, and decodes once: `%252E` decodes to the text `%2E`, not to a dot. | `Spec.percent_vectors` |
 
 The command-line tool in `Main.lean` calls these functions directly.
 
@@ -37,7 +37,7 @@ The command-line tool in `Main.lean` calls these functions directly.
 - Reading requests and printing answers in `Main.lean`: splitting lines, the decimal parser, the checks that bytes are below 256 and character codes are Unicode scalar values, and the conversions `Nat.toUInt8`, `Char.ofNat`, and `String.ofList`. The differential tests cover them, malformed requests included.
 - Speed. The code works on lists, which suits proofs, not large data.
 - Base 64 variants: the URL-safe alphabet, line breaks, and unpadded text are not supported. Strict decoding also rejects two kinds of text that Python's strict mode decodes: unused bits before the padding that are not zero, and, in Python 3.11 and in 3.12 before 3.12.4, padding after a whole group, such as `Zm9v=`. The tests count both.
-- Percent-encoding with another set of characters left as they are, such as the `+` for a space of HTML forms or the wider sets of JavaScript's `encodeURIComponent`. Which characters a URI component allows, and whether text is decoded at the right layer, are for a URI parser; this codec decodes what it is given, once.
+- Percent-encoding with another set of characters left as they are, such as the `+` for a space of HTML forms or the wider sets of JavaScript's `encodeURIComponent`. Which characters a URI component allows, and whether text is decoded at the right layer, are for a URI parser. This codec decodes what it is given, once, and does not check that it is URI text: it reads any US-ASCII character but `%` as itself, and reads `%00` as a NUL byte. Section 7.3 of RFC 3986 says `%00` should be rejected where an application does not expect raw data in a component; that check is the caller's.
 - Hex with spaces, line breaks, or a `0x` prefix, which decoding rejects. Hex is RFC 4648 base 16 up to case: it writes lowercase, as Python does, where the RFC's alphabet is uppercase.
 - Other checksums, such as CRC-32C. A frame is this library's own layout, a message and its CRC-32, not a gzip or zip file.
 

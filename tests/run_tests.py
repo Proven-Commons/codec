@@ -6,8 +6,8 @@ The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
 for percent-encoding `urllib.parse.quote` with no safe characters and
 `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape
 through as text, where RFC 3986 has none, so text is first checked
-against the section 2.1 grammar as a regular expression, and only text
-that matches is given to it; the rest must be refused. Inputs come from
+against what `Spec.PctReads` accepts, as a regular expression, and only
+text that matches is given to it; the rest must be refused. Inputs come from
 a recorded seed:
 
 - random byte strings, encoded, decoded, checksummed and framed;
@@ -195,8 +195,9 @@ def oracle_b64decode(text):
         return None
 
 
-# Section 2.1 of RFC 3986 as a regular expression: each piece is `%` and
-# two hex digits, or a US-ASCII character other than `%`.
+# What `Spec.PctReads` accepts, as a regular expression: each piece is `%`
+# and two hex digits (the `pct-encoded` rule of RFC 3986, section 2.1),
+# or a US-ASCII character other than `%`.
 PCT_TEXT = re.compile(r"(?:%[0-9A-Fa-f]{2}|[\x00-\x24\x26-\x7f])*")
 
 
@@ -386,9 +387,10 @@ def run_tool(data, timeout=TIMEOUT):
     """The tool's answer lines for `data`, and a note on how the run
     failed, or None. Lines end in LF only; the output is read as bytes,
     so a CR left in a line fails the comparison. No right answer is
-    longer than its request plus 16 bytes, so a tool that writes more
-    than twice its input and 64 bytes a line is stopped, not read until
-    memory runs out."""
+    longer than one and a half times its request plus 16 bytes (`pctenc`
+    writes three characters for a byte the request can give in two,
+    such as "0,"), so a tool that writes more than twice its input and
+    64 bytes a line is stopped, not read until memory runs out."""
     raw = data.encode("utf-8")
     limit = 2 * len(raw) + 64 * (data.count("\n") + 1)
     try:

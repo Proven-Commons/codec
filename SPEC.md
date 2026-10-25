@@ -30,8 +30,8 @@ Scope: the CRC-32 of ISO 3309, ITU-T V.42, and RFC 1952 (gzip, zip, PNG). The re
 
 Scope: RFC 3986, section 2.1: a byte written as `%` and two hex digits.
 
-- Encoding keeps the unreserved characters of section 2.3 (`A` to `Z`, `a` to `z`, `0` to `9`, `-`, `.`, `_` and `~`) as they are, and writes every other byte as `%` and two uppercase hex digits, the high half first. The RFC asks producers for both: uppercase digits (section 2.1), and no percent-encoding of unreserved characters (section 2.3). So the encoder writes the normal form of section 6.2.2.2.
-- Decoding reads `%` and two hex digits, in either case, as the byte they spell, and any other US-ASCII character but `%` as its own code. It fails on a `%` without two hex digits after it, and on any character outside US-ASCII. It decodes once (section 2.4): `%252E` decodes to the text `%2E`, not to a dot.
+- Encoding keeps the unreserved characters of section 2.3 (`A` to `Z`, `a` to `z`, `0` to `9`, `-`, `.`, `_` and `~`) as they are, and writes every other byte as `%` and two uppercase hex digits, the high half first. The RFC asks producers for both: uppercase digits (section 2.1), and no percent-encoding of unreserved characters (section 2.3). So the encoder's output is already in the normal form of sections 6.2.2.1 (uppercase digits) and 6.2.2.2 (unreserved characters not encoded).
+- Decoding reads `%` and two hex digits, in either case, as the byte they spell, and any other US-ASCII character but `%` as its own code. It does not check which characters a URI allows: a space, a control character or `{` reads as itself. It fails on a `%` without two hex digits after it, and on any character outside US-ASCII. It decodes once (section 2.4): `%252E` decodes to the text `%2E`, not to a dot.
 
 Decoders differ on bad escapes. Go's `url.PathUnescape` returns an error, as this one does. Python's `urllib.parse.unquote` passes them through as text.
 
@@ -71,4 +71,4 @@ Together these fix every output. The encoders, `crc32`, and `frame` are given ex
 
 ## Oracle
 
-Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that matches the section 2.1 grammar as a regular expression; the decoder must refuse the rest.
+Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest.

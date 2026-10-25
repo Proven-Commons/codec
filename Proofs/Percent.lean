@@ -164,12 +164,15 @@ theorem Spec.percent_vectors :
     Percent.encode [0xC3, 0x80] = "%C3%80".toList ∧
     Percent.encode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList ∧
     Percent.encode (Spec.ascii "-._~") = "-._~".toList ∧
-    Percent.encode (Spec.ascii "%/?#[]@!$&'()*+,;=") =
-      "%25%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D".toList ∧
+    Percent.encode (Spec.ascii "Laguna Beach") = "Laguna%20Beach".toList ∧
+    Percent.encode (Spec.ascii "%:/?#[]@!$&'()*+,;=") =
+      "%25%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D".toList ∧
     Percent.decode "%C3%80".toList = some [0xC3, 0x80] ∧
     Percent.decode "%e3%82%a2".toList = some [0xE3, 0x82, 0xA2] ∧
     Percent.decode "%7E".toList = some (Spec.ascii "~") ∧
     Percent.decode "%63/%7bfoo%7d".toList = some (Spec.ascii "c/{foo}") ∧
+    Percent.decode "%3a".toList = some (Spec.ascii ":") ∧
+    Percent.decode "%3A".toList = some (Spec.ascii ":") ∧
     Percent.decode "a+b c".toList = some (Spec.ascii "a+b c") ∧
     Percent.decode "%252E".toList = some (Spec.ascii "%2E") ∧
     Percent.decode "%".toList = none ∧
