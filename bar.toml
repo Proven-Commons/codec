@@ -19,6 +19,7 @@ code = [
   "Codec.Hex.encode", "Codec.Hex.decode",
   "Codec.Base64.encode", "Codec.Base64.decode",
   "Codec.Crc32.crc32", "Codec.Crc32.frame", "Codec.Crc32.unframe",
+  "Codec.Percent.encode", "Codec.Percent.decode",
 ]
 
 # One entry per approval, added in a pull request the reviewer approves.

@@ -99,3 +99,82 @@ def Spec.le32 (x : UInt32) : List UInt8 :=
    (x.toNat / 2 ^ 16 % 2 ^ 8).toUInt8, (x.toNat / 2 ^ 24).toUInt8]
 
 example : Spec.le32 0xCBF43926 = [0x26, 0x39, 0xF4, 0xCB] := by decide
+
+/-! ## Percent-encoding
+
+RFC 3986, section 2.1:
+
+```
+pct-encoded = "%" HEXDIG HEXDIG
+```
+
+"The uppercase hexadecimal digits 'A' through 'F' are equivalent to the
+lowercase digits 'a' through 'f', respectively. ... For consistency, URI
+producers and normalizers should use uppercase hexadecimal digits for
+all percent-encodings."
+
+Section 2.3:
+
+```
+unreserved  = ALPHA / DIGIT / "-" / "." / "_" / "~"
+```
+
+"For consistency, percent-encoded octets in the ranges of ALPHA (%41-%5A
+and %61-%7A), DIGIT (%30-%39), hyphen (%2D), period (%2E), underscore
+(%5F), or tilde (%7E) should not be created by URI producers".
+
+Section 2.4: "Implementations must not percent-encode or decode the same
+string more than once". -/
+
+/-- The unreserved characters of section 2.3. -/
+def Spec.unreservedChars : List Char :=
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".toList
+
+-- `A` to `Z`, `a` to `z`, `0` to `9`, then `-`, `.`, `_` and `~`, by code point.
+example : Spec.unreservedChars.map Char.toNat =
+    (List.range 26).map (· + 65) ++ (List.range 26).map (· + 97) ++
+      (List.range 10).map (· + 48) ++ [45, 46, 95, 126] := by decide
+
+/-- The hex digits, uppercase, as section 2.1 recommends producers write
+    them. -/
+def Spec.upperHexDigits : List Char := "0123456789ABCDEF".toList
+
+-- Digits 0 to 9, then A to F, by code point.
+example : Spec.upperHexDigits.map Char.toNat =
+    (List.range 10).map (· + 48) ++ (List.range 6).map (· + 65) := by decide
+
+/-- How a producer writes one byte: an unreserved character as itself,
+    and any other byte as `%` and two uppercase digits, the high half
+    first. -/
+def Spec.pctByte (b : UInt8) : List Char :=
+  if Char.ofNat b.toNat ∈ Spec.unreservedChars then [Char.ofNat b.toNat]
+  else ['%', Spec.upperHexDigits.getD (b.toNat / 16) '?',
+    Spec.upperHexDigits.getD (b.toNat % 16) '?']
+
+/-- The percent-encoding of a byte string, byte by byte. -/
+def Spec.pctEncode (bs : List UInt8) : List Char :=
+  (bs.map Spec.pctByte).flatten
+
+-- The examples of sections 2.1 and 2.5: the space, "A", LATIN CAPITAL
+-- LETTER A WITH GRAVE (C3 80 in UTF-8) and KATAKANA LETTER A (E3 82 A2).
+example : Spec.pctEncode [0x20] = "%20".toList := by decide
+example : Spec.pctEncode (Spec.ascii "A") = "A".toList := by decide
+example : Spec.pctEncode [0xC3, 0x80] = "%C3%80".toList := by decide
+example : Spec.pctEncode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList := by decide
+
+/-- How percent-encoded text reads: `Spec.PctReads cs bs` says the text
+    `cs` reads as the bytes `bs`. A `%` and two hex digits, in either
+    case, read as the byte they spell, the high half first. Any other
+    US-ASCII character but `%` reads as its own code. Nothing else
+    reads: not a `%` without two hex digits after it, and not a
+    character outside US-ASCII. What a `%` and its digits spell is never
+    read again. -/
+inductive Spec.PctReads : List Char → List UInt8 → Prop where
+  | nil : Spec.PctReads [] []
+  | escape {hi lo : Char} {b : UInt8} {rest : List Char} {bs : List UInt8} :
+      Spec.asciiLower hi = Spec.hexDigit (b.toNat / 16) →
+      Spec.asciiLower lo = Spec.hexDigit (b.toNat % 16) →
+      Spec.PctReads rest bs → Spec.PctReads ('%' :: hi :: lo :: rest) (b :: bs)
+  | char {c : Char} {rest : List Char} {bs : List UInt8} :
+      c ≠ '%' → c.toNat < 0x80 →
+      Spec.PctReads rest bs → Spec.PctReads (c :: rest) (c.toNat.toUInt8 :: bs)

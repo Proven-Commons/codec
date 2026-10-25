@@ -126,3 +126,49 @@ theorem Spec.unframe_frame (bs : List UInt8) :
 /-- Unframing accepts nothing else: whatever it accepts is a frame. -/
 theorem Spec.frame_unframe (fr bs : List UInt8) :
     Crc32.unframe fr = some bs → Crc32.frame bs = fr := sorry
+
+/-! ## Percent-encoding
+
+RFC 3986, section 2.1: a byte as `%` and two hex digits. The encoder
+keeps the unreserved characters of section 2.3 and writes every other
+byte as `%` and two uppercase digits. The decoder reads digits in either
+case, and decodes once. -/
+
+/-- The encoder writes each byte as sections 2.1 and 2.3 tell producers
+    to: an unreserved character as itself, any other byte as `%` and
+    two uppercase digits. -/
+theorem Spec.percent_encode_eq (bs : List UInt8) :
+    Percent.encode bs = Spec.pctEncode bs := sorry
+
+/-- The decoder reads exactly the text that `Spec.PctReads` allows, and
+    reads it as `Spec.PctReads` says. So it refuses a `%` without two
+    hex digits after it, and any character outside US-ASCII. -/
+theorem Spec.percent_decode_iff (cs : List Char) (bs : List UInt8) :
+    Percent.decode cs = some bs ↔ Spec.PctReads cs bs := sorry
+
+/-- Decoding what the encoder wrote gives the bytes back. -/
+theorem Spec.percent_decode_encode (bs : List UInt8) :
+    Percent.decode (Percent.encode bs) = some bs := sorry
+
+/-- The examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2; the
+    reserved and unreserved characters; decoding once (`%252E` is the
+    text `%2E`, not a dot); and text the decoder refuses. -/
+theorem Spec.percent_vectors :
+    Percent.encode [0x20] = "%20".toList ∧
+    Percent.encode (Spec.ascii "A") = "A".toList ∧
+    Percent.encode [0xC3, 0x80] = "%C3%80".toList ∧
+    Percent.encode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList ∧
+    Percent.encode (Spec.ascii "-._~") = "-._~".toList ∧
+    Percent.encode (Spec.ascii "%/?#[]@!$&'()*+,;=") =
+      "%25%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D".toList ∧
+    Percent.decode "%C3%80".toList = some [0xC3, 0x80] ∧
+    Percent.decode "%e3%82%a2".toList = some [0xE3, 0x82, 0xA2] ∧
+    Percent.decode "%7E".toList = some (Spec.ascii "~") ∧
+    Percent.decode "%63/%7bfoo%7d".toList = some (Spec.ascii "c/{foo}") ∧
+    Percent.decode "a+b c".toList = some (Spec.ascii "a+b c") ∧
+    Percent.decode "%252E".toList = some (Spec.ascii "%2E") ∧
+    Percent.decode "%".toList = none ∧
+    Percent.decode "%2".toList = none ∧
+    Percent.decode "%zz".toList = none ∧
+    Percent.decode "%%41".toList = none ∧
+    Percent.decode "café".toList = none := sorry
