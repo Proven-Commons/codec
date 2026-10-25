@@ -23,7 +23,11 @@
     "Spec.percent_encode_eq",
     "Spec.percent_decode_iff",
     "Spec.percent_decode_encode",
-    "Spec.percent_vectors"
+    "Spec.percent_vectors",
+    "Spec.pem_encode_iff",
+    "Spec.pem_decode_iff",
+    "Spec.pem_decode_encode",
+    "Spec.pem_vectors"
   ],
   "permitted_axioms": [
     "propext",

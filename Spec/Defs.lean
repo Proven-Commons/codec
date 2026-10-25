@@ -178,3 +178,109 @@ inductive Spec.PctReads : List Char → List UInt8 → Prop where
   | char {c : Char} {rest : List Char} {bs : List UInt8} :
       c ≠ '%' → c.toNat < 0x80 →
       Spec.PctReads rest bs → Spec.PctReads (c :: rest) (c.toNat.toUInt8 :: bs)
+
+/-! ## PEM
+
+RFC 7468, the textual encoding of PKIX, PKCS, and CMS structures,
+section 3, the strict form (Figure 3) and the rules it uses (Figure 1):
+
+```
+stricttextualmsg = preeb eol
+                   strictbase64text
+                   posteb eol
+
+strictbase64finl = *15(4base64char) (4base64char / 3base64char
+                     base64pad / 2base64char 2base64pad) eol
+base64fullline   = 64base64char eol
+strictbase64text = *base64fullline strictbase64finl
+
+preeb      = "-----BEGIN " label "-----"
+posteb     = "-----END " label "-----"
+labelchar  = %x21-2C / %x2E-7E    ; any printable character,
+                                  ; except hyphen-minus
+label      = [ labelchar *( ["-" / SP] labelchar ) ]       ; empty ok
+eol        = CRLF / CR / LF
+```
+
+Section 2: "Generators MUST put the same label on the "-----END " line
+(post-encapsulation boundary) as the corresponding "-----BEGIN " line."
+"Generators MUST wrap the base64-encoded lines so that each line consists
+of exactly 64 characters except for the final line".
+
+The base 64 is RFC 4648, section 4, as `Base64.encode` writes it; its
+statements above pin it down. Two points the strict form leaves open are
+settled here. It has no text for empty data, since `strictbase64finl`
+needs four characters: here empty data has no line of base 64. And it
+allows a final group whose unused bits are not zero, which strict base 64
+refuses: here the base 64 is exactly `Base64.encode` of the data. -/
+
+/-- `labelchar`: printable US-ASCII, `!` to `~`, except `-`. -/
+def Spec.labelChar (c : Char) : Prop :=
+  (0x21 ≤ c.toNat ∧ c.toNat ≤ 0x2C) ∨ (0x2E ≤ c.toNat ∧ c.toNat ≤ 0x7E)
+
+/-- `*( ["-" / SP] labelchar )`: label characters, each of which may
+    follow one `-` or space. -/
+inductive Spec.LabelTail : List Char → Prop where
+  | nil : Spec.LabelTail []
+  | char {c : Char} {rest : List Char} :
+      Spec.labelChar c → Spec.LabelTail rest → Spec.LabelTail (c :: rest)
+  | sep {s c : Char} {rest : List Char} :
+      (s = '-' ∨ s = ' ') → Spec.labelChar c → Spec.LabelTail rest →
+      Spec.LabelTail (s :: c :: rest)
+
+/-- `label = [ labelchar *( ["-" / SP] labelchar ) ]`. -/
+def Spec.Label (l : List Char) : Prop :=
+  l = [] ∨ ∃ c rest, l = c :: rest ∧ Spec.labelChar c ∧ Spec.LabelTail rest
+
+/-- `eol = CRLF / CR / LF`. -/
+def Spec.Eol (e : List Char) : Prop :=
+  e = ['\r', '\n'] ∨ e = ['\r'] ∨ e = ['\n']
+
+/-- The text `text` is the lines `ls`, each followed by an `eol`. No
+    line holds a CR or an LF. -/
+inductive Spec.LinesEol : List Char → List (List Char) → Prop where
+  | nil : Spec.LinesEol [] []
+  | cons {l e rest : List Char} {ls : List (List Char)} :
+      '\r' ∉ l → '\n' ∉ l → Spec.Eol e → Spec.LinesEol rest ls →
+      Spec.LinesEol (l ++ e ++ rest) (l :: ls)
+
+/-- `*base64fullline strictbase64finl`, without the line ends: the base
+    64 text cut into lines of 64 characters, the last one shorter. -/
+def Spec.lines64 (s : List Char) : List (List Char) :=
+  (List.range ((s.length + 63) / 64)).map fun i => (s.drop (64 * i)).take 64
+
+/-- The lines of the message for `label` and `data`, without their line
+    ends: `preeb`, the base 64 of the data, `posteb`. The END line has
+    the same label as the BEGIN line. -/
+def Spec.pemLines (label : List Char) (data : List UInt8) : List (List Char) :=
+  ["-----BEGIN ".toList ++ label ++ "-----".toList] ++ Spec.lines64 (Base64.encode data) ++
+    ["-----END ".toList ++ label ++ "-----".toList]
+
+/-- What a generator writes: each line, then LF. -/
+def Spec.pemText (label : List Char) (data : List UInt8) : List Char :=
+  ((Spec.pemLines label data).map (· ++ ['\n'])).flatten
+
+/-- `text` is a message in the strict form, for this label and data:
+    the label is a `label`, and the text is the message's lines, each
+    followed by any `eol`. -/
+def Spec.StrictPem (text label : List Char) (data : List UInt8) : Prop :=
+  Spec.Label label ∧ Spec.LinesEol text (Spec.pemLines label data)
+
+-- 48 bytes are one full line of 64 characters; 49 bytes need a second.
+example : (Spec.lines64 (List.replicate 64 'A')).map List.length = [64] := by decide
+example : (Spec.lines64 (List.replicate 68 'A')).map List.length = [64, 4] := by decide
+example : Spec.lines64 [] = [] := by decide
+
+/-- The data of RFC 7468, Figure 15 (a subject public key info), as the
+    base 64 there spells it. -/
+def Spec.figure15 : List UInt8 := [
+    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02,
+    0x01, 0x06, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04,
+    0x9F, 0x52, 0xE5, 0xC0, 0xB3, 0x7F, 0x28, 0x16, 0x10, 0x45, 0x51, 0xFA,
+    0x1D, 0xF2, 0x0C, 0x4F, 0x37, 0xC4, 0xA8, 0x93, 0x95, 0xCE, 0xD2, 0xDE,
+    0x90, 0xB7, 0x21, 0xA7, 0x68, 0x62, 0xEF, 0xC7, 0x02, 0x68, 0xC6, 0x3C,
+    0xD4, 0x50, 0x65, 0x62, 0xCF, 0x09, 0xF6, 0x5E, 0xE4, 0xAD, 0xCF, 0x8C,
+    0xE1, 0xA0, 0x5E, 0x08, 0x66, 0x05, 0x8D, 0xB6, 0xBE, 0x86, 0x25, 0xED,
+    0xB4, 0x95, 0x8F, 0x2F, 0xBC, 0x9D, 0x94, 0x4F, 0xB9, 0x50, 0x6E, 0x14,
+    0x36, 0x49, 0xF7, 0x12, 0x8B, 0x3C, 0x12, 0x26, 0x41, 0xCA, 0x2F, 0x43,
+    0x56, 0xCC, 0x9F, 0xCB, 0xD7, 0x9E, 0x8E, 0x1F, 0xBC, 0x01, 0x78, 0x29]

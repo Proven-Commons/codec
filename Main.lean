@@ -14,6 +14,15 @@
     unframe 1,2,3,4,5     prints  ok:... (or none)
     pctenc 32,65          prints  %20A
     pctdec 37,50,48,65    prints  ok:32,65   (or none)
+    pemenc 88;0           prints  ok: and the character codes of the PEM
+                                  text for label "X" and the byte 0
+                                  (or none, for a label the rule refuses)
+    pemdec 45,45,...      prints  ok:88;0, the label's character codes and
+                                  the data (or none)
+
+  `pemenc` takes two lists, the label's character codes and the bytes,
+  separated by `;`. PEM text holds line ends, so it goes in and out as
+  character codes.
 
   A request is an operation, then optionally one space and its numbers;
   with no numbers after the space, the input is empty. A malformed
@@ -51,6 +60,20 @@ def toChars (ns : List Nat) : Option (List Char) :=
 def showBytes (bs : List UInt8) : String :=
   ",".intercalate (bs.map fun b => toString b.toNat)
 
+def showChars (cs : List Char) : String :=
+  ",".intercalate (cs.map fun c => toString c.toNat)
+
+/-- `pemenc`: the label's character codes, `;`, and the bytes. -/
+def pemEncode (arg : String) : Option String :=
+  match arg.splitOn ";" with
+  | [l, d] => do
+    let label ← toChars (← numbers l)
+    let data ← toBytes (← numbers d)
+    return match Pem.encode label data with
+      | some text => "ok:" ++ showChars text
+      | none => "none"
+  | _ => none
+
 /-- The answer to one request, or `none` when the request is malformed. -/
 def answer (op : String) (ns : List Nat) : Option String := do
   let result : Option (List UInt8) → String
@@ -66,12 +89,18 @@ def answer (op : String) (ns : List Nat) : Option String := do
   | "unframe" => return result (Crc32.unframe (← toBytes ns))
   | "pctenc" => return String.ofList (Percent.encode (← toBytes ns))
   | "pctdec" => return result (Percent.decode (← toChars ns))
+  | "pemdec" =>
+    return match Pem.decode (← toChars ns) with
+      | some (label, data) => "ok:" ++ showChars label ++ ";" ++ showBytes data
+      | none => "none"
   | _ => none
 
 /-- The answer to one line: an operation, then optionally one space and
     its numbers. -/
 def request (line : String) : Option String :=
   match line.splitOn " " with
+  | ["pemenc", arg] => pemEncode arg
+  | ["pemenc"] => none
   | [op] => answer op []
   | [op, arg] => numbers arg >>= answer op
   | _ => none

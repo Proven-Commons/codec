@@ -177,3 +177,59 @@ theorem Spec.percent_vectors :
     Percent.decode "%zz".toList = none ∧
     Percent.decode "%%41".toList = none ∧
     Percent.decode "café".toList = none := sorry
+
+/-! ## PEM
+
+RFC 7468, the strict form of the textual encoding (Figure 3): a BEGIN
+line with a label, the base 64 of the data in lines of 64 characters,
+and an END line with the same label. -/
+
+/-- The encoder writes exactly the strict form, each line ending in LF,
+    and fails on a label the `label` rule does not allow. -/
+theorem Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List Char) :
+    Pem.encode label data = some text ↔ Spec.Label label ∧ text = Spec.pemText label data :=
+  sorry
+
+/-- The decoder reads exactly the messages in the strict form, with any
+    `eol` at the end of each line, and gives their label and data. So
+    it refuses a different label on the END line, blanks, headers, text
+    before or after the message, lines of another length, and base 64
+    that is not exactly the encoding of the data. -/
+theorem Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
+    Pem.decode text = some (label, data) ↔ Spec.StrictPem text label data := sorry
+
+/-- Decoding what the encoder wrote gives the label and the data back. -/
+theorem Spec.pem_decode_encode (label : List Char) (data : List UInt8) (text : List Char) :
+    Pem.encode label data = some text → Pem.decode text = some (label, data) := sorry
+
+/-- RFC 7468, Figure 15, written exactly as the RFC prints it and read
+    back with CR LF line ends; empty data and an empty label; labels the
+    `label` rule refuses; and texts the decoder refuses. -/
+theorem Spec.pem_vectors :
+    Pem.encode "PUBLIC KEY".toList Spec.figure15 = some
+      ("-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\n".toList ++
+       "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\n-----END PUBLIC KEY-----\n".toList) ∧
+    Pem.decode ("-----BEGIN PUBLIC KEY-----\r\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\r\n".toList ++
+       "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\r\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\r\n-----END PUBLIC KEY-----\r\n".toList) =
+      some ("PUBLIC KEY".toList, Spec.figure15) ∧
+    Pem.encode "X".toList [] = some "-----BEGIN X-----\n-----END X-----\n".toList ∧
+    Pem.decode "-----BEGIN X-----\n-----END X-----\n".toList = some ("X".toList, []) ∧
+    Pem.decode "-----BEGIN -----\rAA==\r-----END -----\r".toList = some ([], [0]) ∧
+    Pem.encode "RSA PRIVATE KEY".toList [0] =
+      some "-----BEGIN RSA PRIVATE KEY-----\nAA==\n-----END RSA PRIVATE KEY-----\n".toList ∧
+    Pem.encode "A--B".toList [] = none ∧
+    Pem.encode "A  B".toList [] = none ∧
+    Pem.encode " A".toList [] = none ∧
+    Pem.encode "A-".toList [] = none ∧
+    Pem.encode "\u00c9".toList [] = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END Y-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA== \n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X----- \nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\n\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nProc-Type: 4,ENCRYPTED\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "text\n-----BEGIN X-----\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----\n\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAB==\n-----END X-----\n".toList = none ∧
+    Pem.decode ("-----BEGIN X-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAA\n".toList ++
+      "-----END X-----\n".toList) = none := sorry

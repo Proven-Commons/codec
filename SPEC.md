@@ -1,6 +1,6 @@
 # Specification: codec
 
-Four small codecs: hex, base 64, CRC-32 with a frame around a message, and percent-encoding. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
+Five small codecs: hex, base 64, CRC-32 with a frame around a message, percent-encoding, and PEM. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
 
 Bytes are `List UInt8` and text is `List Char`. The command-line tool converts at the edges.
 
@@ -35,6 +35,19 @@ Scope: RFC 3986, section 2.1: a byte written as `%` and two hex digits.
 
 Decoders differ on bad escapes. Go's `url.PathUnescape` returns an error, as this one does. Python's `urllib.parse.unquote` passes them through as text.
 
+## PEM
+
+Scope: RFC 7468, the textual encoding of PKIX, PKCS, and CMS structures, in its strict form (section 3, Figure 3). One message: a BEGIN line with a label, the base 64 of the data (RFC 4648, section 4, as the base 64 codec above writes it), and an END line with the same label.
+
+- Encoding writes `-----BEGIN label-----`, the base 64 in lines of exactly 64 characters with the last line shorter, and `-----END label-----`, each line ending in LF. It fails on a label that the `label` rule does not allow: `label = [ labelchar *( ["-" / SP] labelchar ) ]`, where a `labelchar` is printable US-ASCII except `-`. So a label is empty, or has no `-` or space at either end and never two in a row.
+- Decoding reads exactly one message in that form. Each line may end in LF, CR, or CR LF, as the `eol` rule allows; CR LF is one line end. It fails on everything else, including:
+  - a different label on the END line, which the RFC lets parsers ignore but this one does not;
+  - blanks, empty lines, headers, and text before or after the message;
+  - a base 64 line of another length;
+  - base 64 that is not exactly the encoding of the data, such as a last group whose unused bits are not zero.
+
+The strict form has no text for empty data, since its last line of base 64 needs four characters. Here empty data is the BEGIN and END lines with nothing between, as Go's `encoding/pem` and Python's `ssl.DER_cert_to_PEM_cert` write it.
+
 ## Valid inputs and errors
 
 Every encoder input and every `crc32` and `frame` input is valid. The decoders and `unframe` return `none` for anything they do not accept. No function can fail any other way.
@@ -66,9 +79,13 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | Percent-decoding reads exactly what `Spec.PctReads` allows, as it says. | `Spec.percent_decode_iff` |
 | Percent-decoding gives back what was encoded. | `Spec.percent_decode_encode` |
 | The examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2; the reserved and unreserved characters; decoding once; and text the decoder refuses. | `Spec.percent_vectors` |
+| PEM encoding gives `Spec.pemText` for a label the `label` rule allows, and fails on any other label. | `Spec.pem_encode_iff` |
+| PEM decoding gives a label and data exactly when `Spec.StrictPem` holds: the text is the message's lines, each followed by any `eol`. | `Spec.pem_decode_iff` |
+| PEM decoding gives back what was encoded. | `Spec.pem_decode_encode` |
+| RFC 7468's Figure 15, written exactly as the RFC prints it and read back with CR LF; empty data and an empty label; labels the rule refuses; texts the decoder refuses. | `Spec.pem_vectors` |
 
-Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. A function that did nothing, or that accepted too much, would fail at least one of them.
+Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any `eol` in place of each LF: `Spec.StrictPem` gives what it accepts. A function that did nothing, or that accepted too much, would fail at least one of them.
 
 ## Oracle
 
-Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest.
+Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest. For PEM, `ssl.DER_cert_to_PEM_cert` for the `CERTIFICATE` label, and for other labels an encoder and a strict parser written in the tests from the ABNF of RFC 7468, with the base 64 checked by strict `binascii.a2b_base64` and by encoding it again.
