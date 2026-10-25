@@ -1,0 +1,16 @@
+name = "codec"
+version = "0.1.0"
+defaultTargets = ["Codec", "Spec", "Proofs", "codec"]
+
+[[lean_lib]]
+name = "Codec"
+
+[[lean_lib]]
+name = "Spec"
+
+[[lean_lib]]
+name = "Proofs"
+
+[[lean_exe]]
+name = "codec"
+root = "Main"
