@@ -42,6 +42,7 @@ The command-line tool in `Main.lean` calls these functions directly.
 - `lake comparator`, which builds the statements and the proofs in a sandbox, exports them, and checks that each proof proves exactly its statement.
 - bubblewrap and the Linux kernel's namespaces, which keep the untrusted build from tampering with that check.
 - The Lean compiler, with the C compiler and linker shipped with it, and the runtime, which turn the proved definitions into the program that runs.
+- Lean's core library, including the compiled code it puts in place of some definitions the proofs reason about (by `implemented_by` and `extern`), such as the fixed-width integer operations in CRC-32 and the arithmetic on natural numbers.
 - The operating system and hardware it runs on.
 - Python's standard library and zlib, as the oracle in the differential tests. The record names their versions.
 
@@ -66,7 +67,7 @@ python3 tests/run_tests.py
 - `Spec/Defs.lean`: the definitions the statements use, written from the standards, with checks against their test values.
 - `Proofs.lean` and `Proofs/`: the proofs, under the same names.
 - `Main.lean`: the command-line tool the tests drive.
-- `lakefile.toml`: the build. It names the package, its libraries and executable, and the default targets, and sets nothing else.
+- `lakefile.toml`: the build. It names the package and its version, its libraries and executable, and the default targets, and sets nothing else.
 - `comparator.json`: which theorems `lake comparator` checks, and which axioms it allows.
 - `bar.toml`: the record for the bar check: status, authors, approvals, and where things are.
 - `SPEC.md`: the specification in plain words.
