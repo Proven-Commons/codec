@@ -104,7 +104,7 @@ against the changed tool. A bug is caught when they report failures.
 | n42_trailing_space_every_answer | `Main.lean` | 30006 |
 | n43_trailing_space_on_error | `Main.lean` | 99 |
 | n44_blank_line_after_last | `Main.lean` | 7 |
-| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr, so stdout is the same on every input. The tests compare stdout and the exit status. They read stderr only to stop a tool that writes more than 1 MiB there, and on their requests these notes come to 2,945 bytes. SPEC.md says nothing about stderr. |
+| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr, so stdout is the same on every input. The tests compare stdout and the exit status. They read stderr only to stop a tool that writes more than 1 MiB there, and to quote its last lines when it exits with a status other than 0. This one exits with 0. Its notes come to 2,945 bytes in the run of all the inputs, and to at most 23 bytes in each run of a last line sent alone. SPEC.md says nothing about stderr. |
 | n46_exit_status_1 | `Main.lean` | 7 |
 | n47_bom_on_error_lines | `Main.lean` | 99 |
 | n48_minus_on_first_number | `Main.lean` | 1 |

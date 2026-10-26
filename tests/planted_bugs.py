@@ -433,7 +433,7 @@ BUGS = [
     ('n45_stderr_note', "Main.lean",
      '    stdout.putStrLn ((request line).getD "error")',
      '    match request line with\n    | some s => stdout.putStrLn s\n    | none => do stdout.putStrLn "error"; IO.eprintln s!"malformed: {line}"',
-     'It only adds a note on stderr, so stdout is the same on every input. The tests compare stdout and the exit status. They read stderr only to stop a tool that writes more than 1 MiB there, and on their requests these notes come to 2,945 bytes. SPEC.md says nothing about stderr.'),
+     'It only adds a note on stderr, so stdout is the same on every input. The tests compare stdout and the exit status. They read stderr only to stop a tool that writes more than 1 MiB there, and to quote its last lines when it exits with a status other than 0. This one exits with 0. Its notes come to 2,945 bytes in the run of all the inputs, and to at most 23 bytes in each run of a last line sent alone. SPEC.md says nothing about stderr.'),
     ('n46_exit_status_1', "Main.lean",
      '    stdout.putStrLn ((request line).getD "error")',
      '    stdout.putStrLn ((request line).getD "error")\n  IO.Process.exit 1',
