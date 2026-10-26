@@ -88,7 +88,7 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library, for PEM with an encoder and strict parser written in the script, and for Luhn and IBAN with the rules written in the script, on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for. `tests/planted_bugs.py` plants 119 small bugs in the tool, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch 110 of them and why the other 9 change nothing the tool prints.
+`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library, for PEM with an encoder and strict parser written in the script, and for Luhn and IBAN with the rules written in the script, on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for. `tests/planted_bugs.py` plants 137 small bugs in the command-line tool and the code under proof, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch 128 of them and why the other 9 print the same on stdout as the real tool.
 
 ## Layout
 
@@ -101,5 +101,6 @@ python3 tests/run_tests.py
 - `comparator.json`: which theorems `lake comparator` checks, and which axioms it allows.
 - `bar.toml`: the record for the bar check: status, authors, approvals, and where things are.
 - `SPEC.md`: the specification in plain words.
-- `tests/run_tests.py`: the differential tests.
+- `tests/run_tests.py`: the differential tests, and `tests/TEST-RESULTS.md`, the record they write.
+- `tests/planted_bugs.py` and `tests/PLANTED-BUGS.md`: the planted bugs, and the record of which ones the tests catch.
 - `tests/cross_check.py` and `tests/cross_check/`: the one-off comparison with Go and python-stdnum.

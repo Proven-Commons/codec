@@ -6,19 +6,19 @@ against the changed tool. A bug is caught when they report failures.
 
 | Bug | File | Failures |
 |-----|------|----------|
-| m01_bytes_mod_512 | `Main.lean` | 8 |
+| m01_bytes_mod_512 | `Main.lean` | 9 |
 | m02_underscores | `Main.lean` | 1 |
-| m03_invalid_cp_to_fffd | `Main.lean` | 8 |
-| m04_drop_last_number | `Main.lean` | 21241 |
+| m03_invalid_cp_to_fffd | `Main.lean` | 12 |
+| m04_drop_last_number | `Main.lean` | 20216 |
 | m05_trailing_comma | `Main.lean` | 1 |
 | m06_case_insensitive_op | `Main.lean` | 2 |
 | m07_tab_separator | `Main.lean` | 1 |
-| m08_uint64_parser_nocap | `Main.lean` | 5 |
+| m08_uint64_parser_nocap | `Main.lean` | 6 |
 | m08b_uint64_parser_cap | `Main.lean` | 0, equivalent: The cap leaves at most seven digits after the leading zeros. So the value is below 10,000,000, and a UInt64 cannot overflow. |
-| m09_cp_mod_256 | `Main.lean` | 681 |
-| m10_cp_mod_65536 | `Main.lean` | 281 |
+| m09_cp_mod_256 | `Main.lean` | 561 |
+| m10_cp_mod_65536 | `Main.lean` | 262 |
 | m11a_cp_via_uint32_cap | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the trip through UInt32 changes nothing. |
-| m11b_cp_via_uint32_nocap | `Main.lean` | 4 |
+| m11b_cp_via_uint32_nocap | `Main.lean` | 6 |
 | m12_hexenc_unchecked | `Main.lean` | 3 |
 | m13_b64enc_unchecked | `Main.lean` | 1 |
 | m14_crc_unchecked | `Main.lean` | 1 |
@@ -33,30 +33,30 @@ against the changed tool. A bug is caught when they report failures.
 | m21_chomp_strips_mid_cr | `Main.lean` | 4 |
 | m22_cap_counts_leading_zeros | `Main.lean` | 3 |
 | m22b_cap_32_chars_with_zeros | `Main.lean` | 1 |
-| m23_cap_6 | `Main.lean` | 136 |
+| m23_cap_6 | `Main.lean` | 120 |
 | m24_no_cap | `Main.lean` | 0, equivalent: Without the cap, a long number is converted, which only takes longer. It is above 255 and above 0x10FFFF, so the answer is still `error`. |
-| m25_accept_surrogates | `Main.lean` | 5 |
+| m25_accept_surrogates | `Main.lean` | 9 |
 | m26_accept_0x110000 | `Main.lean` | 2 |
 | m27_accept_trailing_space | `Main.lean` | 3 |
-| m28r_reject_empty_arg | `Main.lean` | 2347 |
-| m29_swap_hexenc_b64enc | `Main.lean` | 2498 |
-| m29b_swap_frame_unframe | `Main.lean` | 4332 |
-| m30_hexenc_uppercase | `Main.lean` | 1131 |
+| m28r_reject_empty_arg | `Main.lean` | 1320 |
+| m29_swap_hexenc_b64enc | `Main.lean` | 1522 |
+| m29b_swap_frame_unframe | `Main.lean` | 2550 |
+| m30_hexenc_uppercase | `Main.lean` | 686 |
 | m31_trim_each_number | `Main.lean` | 4 |
 | m32_crlf_output | `Main.lean` | 30006 |
 | m33_cr_only_output | `Main.lean` | 30007 |
-| m34_reject_nul_code_point | `Main.lean` | 167 |
-| m34b_nul_as_invalid_sentinel | `Main.lean` | 167 |
-| m35_no_eof_check | `Main.lean` | 2886625 |
+| m34_reject_nul_code_point | `Main.lean` | 104 |
+| m34b_nul_as_invalid_sentinel | `Main.lean` | 104 |
+| m35_no_eof_check | `Main.lean` | 3599194 |
 | m36_no_arg_form_refused | `Main.lean` | 1 |
-| m37_chars_below_256_only | `Main.lean` | 921 |
+| m37_chars_below_256_only | `Main.lean` | 784 |
 | m38_strip_cr_before_lf | `Main.lean` | 3 |
-| m39_showbytes_comma_space | `Main.lean` | 11729 |
-| m40_swap_hexdec_b64dec | `Main.lean` | 4285 |
+| m39_showbytes_comma_space | `Main.lean` | 7764 |
+| m40_swap_hexdec_b64dec | `Main.lean` | 2591 |
 | m41_unchecked_chars_b64dec | `Main.lean` | 1 |
 | m42_unchecked_chars_hexdec | `Main.lean` | 4 |
 | m43_cr_as_separator | `Main.lean` | 1 |
-| m44_parse_after_zero_strip | `Main.lean` | 1935 |
+| m44_parse_after_zero_strip | `Main.lean` | 4073 |
 | m45_toInt_nonneg | `Main.lean` | 3 |
 | m45b_toInt_nonneg_cap | `Main.lean` | 3 |
 | m45c_minus_sign_then_nonneg | `Main.lean` | 2 |
@@ -66,7 +66,7 @@ against the changed tool. A bug is caught when they report failures.
 | n04_chomp_nel_before_lf | `Main.lean` | 1 |
 | n05_chomp_ls_ps_before_lf | `Main.lean` | 2 |
 | n06_unicode_eol_at_eof | `Main.lean` | 1 |
-| n07_ls_splits_requests | `Main.lean` | 26200 |
+| n07_ls_splits_requests | `Main.lean` | 24012 |
 | n08_chomp_ff_fs_gs_rs_before_lf | `Main.lean` | 2 |
 | n09_chomp_filter_all_lf | `Main.lean` | 0, equivalent: A line from getLine holds at most one LF, at its end. So removing every LF removes just that one. |
 | n10_leading_bom_dropped | `Main.lean` | 2 |
@@ -85,46 +85,70 @@ against the changed tool. A bug is caught when they report failures.
 | n23_cap_8 | `Main.lean` | 0, equivalent: A number with eight digits after its leading zeros is at least 10,000,000. That is above 255 and above 0x10FFFF, so the answer is still `error`. |
 | n24_cap_ignores_all_zeros | `Main.lean` | 0, equivalent: A number this lets past the cap still has eight or more digits after its leading zeros. So it is at least 10,000,000, and the range checks still refuse it. |
 | n25_cap_takewhile_zeros | `Main.lean` | 2 |
-| n26_zero_refused | `Main.lean` | 1935 |
-| n27_bytes_le_256 | `Main.lean` | 6 |
+| n26_zero_refused | `Main.lean` | 4073 |
+| n27_bytes_le_256 | `Main.lean` | 7 |
 | n28_bytes_via_uint16 | `Main.lean` | 1 |
 | n29_bytes_via_uint32 | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the value never wraps. |
-| n30_cp_lt_10ffff | `Main.lean` | 7 |
+| n30_cp_lt_10ffff | `Main.lean` | 8 |
 | n31_cp_mask_21_bits | `Main.lean` | 1 |
 | n32_cp_mask_24_bits | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^24. So the mask changes nothing. |
-| n33_surrogate_D800_accepted | `Main.lean` | 3 |
-| n34_surrogate_DFFF_accepted | `Main.lean` | 1 |
-| n35_D7FF_refused | `Main.lean` | 6 |
-| n36_E000_refused | `Main.lean` | 6 |
+| n33_surrogate_D800_accepted | `Main.lean` | 6 |
+| n34_surrogate_DFFF_accepted | `Main.lean` | 2 |
+| n35_D7FF_refused | `Main.lean` | 7 |
+| n36_E000_refused | `Main.lean` | 7 |
 | n37_surrogate_pairs_combined | `Main.lean` | 1 |
-| n38_c0_controls_refused | `Main.lean` | 2936 |
-| n39_noncharacters_refused | `Main.lean` | 13 |
+| n38_c0_controls_refused | `Main.lean` | 1929 |
+| n39_noncharacters_refused | `Main.lean` | 15 |
 | n40_no_lf_on_last_answer | `Main.lean` | 7 |
 | n41_bom_before_output | `Main.lean` | 7 |
 | n42_trailing_space_every_answer | `Main.lean` | 30006 |
-| n43_trailing_space_on_error | `Main.lean` | 82 |
+| n43_trailing_space_on_error | `Main.lean` | 94 |
 | n44_blank_line_after_last | `Main.lean` | 7 |
-| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr. The tool prints the same on stdout, and the tests and SPEC.md cover stdout only. |
+| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr. The tests compare stdout and the exit status, and neither they nor SPEC.md say anything about stderr. |
 | n46_exit_status_1 | `Main.lean` | 7 |
-| n47_bom_on_error_lines | `Main.lean` | 82 |
+| n47_bom_on_error_lines | `Main.lean` | 94 |
 | n48_minus_on_first_number | `Main.lean` | 1 |
 | n49_bom_on_first_line_only | `Main.lean` | 1 |
-| p01_lowercase_digits | `Codec/Percent.lean` | 1234 |
-| p02_tilde_encoded | `Codec/Percent.lean` | 176 |
-| p03_asterisk_kept | `Codec/Percent.lean` | 177 |
-| p04_non_ascii_low_byte | `Codec/Percent.lean` | 409 |
-| p05_bad_escape_passed_through | `Codec/Percent.lean` | 163 |
-| p06_digits_low_half_first | `Codec/Percent.lean` | 4354 |
-| p07_space_refused | `Codec/Percent.lean` | 76 |
-| q01_lines_of_76 | `Codec/Pem.lean` | 337 |
-| q02_end_label_not_compared | `Codec/Pem.lean` | 246 |
-| q03_lone_cr_not_a_line_end | `Codec/Pem.lean` | 849 |
-| q04_line_lengths_not_checked | `Codec/Pem.lean` | 46 |
-| q05_two_separators_in_label | `Codec/Pem.lean` | 295 |
-| q06_crlf_written | `Codec/Pem.lean` | 1379 |
-| q07_empty_lines_skipped | `Codec/Pem.lean` | 99 |
-| q08_begin_end_words_not_checked | `Codec/Pem.lean` | 52 |
-| q09_comma_refused_in_label | `Codec/Pem.lean` | 352 |
+| p01_lowercase_digits | `Codec/Percent.lean` | 805 |
+| p02_tilde_encoded | `Codec/Percent.lean` | 99 |
+| p03_asterisk_kept | `Codec/Percent.lean` | 97 |
+| p04_non_ascii_low_byte | `Codec/Percent.lean` | 240 |
+| p05_cut_short_escape_passed_through | `Codec/Percent.lean` | 101 |
+| p06_digits_low_half_first | `Codec/Percent.lean` | 2675 |
+| p07_space_refused | `Codec/Percent.lean` | 45 |
+| p08_bad_digit_escape_passed_through | `Codec/Percent.lean` | 515 |
+| q01_lines_of_76 | `Codec/Pem.lean` | 259 |
+| q02_end_label_not_compared | `Codec/Pem.lean` | 150 |
+| q03_lone_cr_not_a_line_end | `Codec/Pem.lean` | 499 |
+| q04_line_lengths_not_checked | `Codec/Pem.lean` | 23 |
+| q05_two_separators_in_label | `Codec/Pem.lean` | 197 |
+| q06_crlf_written | `Codec/Pem.lean` | 883 |
+| q07_empty_lines_skipped | `Codec/Pem.lean` | 54 |
+| q08_begin_end_words_not_checked | `Codec/Pem.lean` | 41 |
+| q09_comma_refused_in_label | `Codec/Pem.lean` | 221 |
+| c01_luhn_carry_dropped | `Codec/Luhn.lean` | 2527 |
+| c02_luhn_doubling_from_check_digit | `Codec/Luhn.lean` | 2804 |
+| c03_luhn_check_digit_place_left_out | `Codec/Luhn.lean` | 1723 |
+| c04_luhn_digits_above_9 | `Codec/Luhn.lean` | 856 |
+| c05_luhn_above_9_in_check_digit | `Codec/Luhn.lean` | 159 |
+| c06_iban_letters_as_one_digit | `Codec/Iban.lean` | 2409 |
+| c07_iban_not_rearranged | `Codec/Iban.lean` | 862 |
+| c08_iban_bban_of_31 | `Codec/Iban.lean` | 10 |
+| c09_iban_empty_bban | `Codec/Iban.lean` | 8 |
+| c10_iban_second_country_letter_unchecked | `Codec/Iban.lean` | 38 |
+| c11_iban_bban_characters_unchecked | `Codec/Iban.lean` | 39 |
+| c12_iban_check_digits_from_97 | `Codec/Iban.lean` | 1557 |
+| c13_iban_check_digits_any_country_length | `Codec/Iban.lean` | 3 |
+| c14_iban_check_digits_without_shape | `Codec/Iban.lean` | 182 |
+| c15_iban_check_digits_only_bban_length | `Codec/Iban.lean` | 173 |
+| c16_iban_shape_check_accepts_lower_case | `Codec/Iban.lean` | 2 |
+| c17_iban_is_upper_accepts_lower_case | `Codec/Iban.lean` | 99 |
+
+The count for `m35_no_eof_check`, a tool that never stops printing, depends on how much
+it prints before the tests stop it, so it differs from run to run.
+
+No bug here changes the Base32 code, `Codec/Base32.lean`, and no planted bugs are
+recorded for it.
 
 ## The changes
 
@@ -996,7 +1020,7 @@ against the changed tool. A bug is caught when they report failures.
 + (decode rest).map (c.toNat.toUInt8 :: ·)
 ```
 
-**p05_bad_escape_passed_through** in `Codec/Percent.lean`:
+**p05_cut_short_escape_passed_through** in `Codec/Percent.lean`:
 
 ```
 -   | '%' :: _ => none
@@ -1015,6 +1039,17 @@ against the changed tool. A bug is caught when they report failures.
 ```
 - if c.toNat < 0x80 then
 + if c.toNat < 0x80 ∧ c ≠ ' ' then
+```
+
+**p08_bad_digit_escape_passed_through** in `Codec/Percent.lean`:
+
+```
+-     match Hex.value hi, Hex.value lo, decode rest with
+-     | some h, some l, some tail => some ((h * 16 + l).toUInt8 :: tail)
+-     | _, _, _ => none
++     match Hex.value hi, Hex.value lo with
++     | some h, some l => (decode rest).map ((h * 16 + l).toUInt8 :: ·)
++     | _, _ => (decode (hi :: lo :: rest)).map (0x25 :: ·)
 ```
 
 **q01_lines_of_76** in `Codec/Pem.lean`:
@@ -1078,4 +1113,123 @@ against the changed tool. A bug is caught when they report failures.
 ```
 - (0x21 ≤ n && n ≤ 0x2C)
 + (0x21 ≤ n && n ≤ 0x2B)
+```
+
+**c01_luhn_carry_dropped** in `Codec/Luhn.lean`:
+
+```
+- if 2 * d > 9 then 2 * d - 9 else 2 * d
++ 2 * d % 10
+```
+
+**c02_luhn_doubling_from_check_digit** in `Codec/Luhn.lean`:
+
+```
+- sumFromRight false ds.reverse
++ sumFromRight true ds.reverse
+```
+
+**c03_luhn_check_digit_place_left_out** in `Codec/Luhn.lean`:
+
+```
+- (10 - sum (ds ++ [0]) % 10) % 10
++ (10 - sum ds % 10) % 10
+```
+
+**c04_luhn_digits_above_9** in `Codec/Luhn.lean`:
+
+```
+- ds.all (· ≤ 9) && 
++ 
+```
+
+**c05_luhn_above_9_in_check_digit** in `Codec/Luhn.lean`:
+
+```
+- ds.all (· ≤ 9) && 
++ (ds.dropLast.all (· ≤ 9)) && 
+```
+
+**c06_iban_letters_as_one_digit** in `Codec/Iban.lean`:
+
+```
+- else (r * 100 + value c) % 97
++ else (r * 10 + value c) % 97
+```
+
+**c07_iban_not_rearranged** in `Codec/Iban.lean`:
+
+```
+- mod97 (s.drop 4 ++ s.take 4) == 1
++ mod97 (s.take 4 ++ s.drop 4) == 1
+```
+
+**c08_iban_bban_of_31** in `Codec/Iban.lean`:
+
+```
+- 1 ≤ bban.length && bban.length ≤ 30
++ 1 ≤ bban.length && bban.length ≤ 31
+```
+
+**c09_iban_empty_bban** in `Codec/Iban.lean`:
+
+```
+- 1 ≤ bban.length && bban.length
++ 0 ≤ bban.length && bban.length
+```
+
+**c10_iban_second_country_letter_unchecked** in `Codec/Iban.lean`:
+
+```
+- isUpper c0 && isUpper c1 &&
++ isUpper c0 &&
+```
+
+**c11_iban_bban_characters_unchecked** in `Codec/Iban.lean`:
+
+```
+- bban.all (fun c => isDigit c || isUpper c)
++ true
+```
+
+**c12_iban_check_digits_from_97** in `Codec/Iban.lean`:
+
+```
+- let c := 98 - mod97
++ let c := 97 - mod97
+```
+
+**c13_iban_check_digits_any_country_length** in `Codec/Iban.lean`:
+
+```
+- if country.length = 2 ∧ wellShaped
++ if wellShaped
+```
+
+**c14_iban_check_digits_without_shape** in `Codec/Iban.lean`:
+
+```
+- if country.length = 2 ∧ wellShaped (country ++ ['0', '0'] ++ bban) then
++ if country.length = 2 then
+```
+
+**c15_iban_check_digits_only_bban_length** in `Codec/Iban.lean`:
+
+```
+- if country.length = 2 ∧ wellShaped (country ++ ['0', '0'] ++ bban) then
++ if country.length = 2 ∧ bban.length ≤ 30 then
+```
+
+**c16_iban_shape_check_accepts_lower_case** in `Codec/Iban.lean`:
+
+```
+-   wellShaped s && mod97 (s.drop 4 ++ s.take 4) == 1
++   wellShaped (s.map Char.toUpper) && mod97 (s.drop 4 ++ s.take 4) == 1
+```
+
+**c17_iban_is_upper_accepts_lower_case** in `Codec/Iban.lean`:
+
+```
+- def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'
++ def isUpper (c : Char) : Bool := 'A' ≤ c.toUpper && c.toUpper ≤ 'Z'
 ```
