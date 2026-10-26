@@ -402,6 +402,14 @@ def iban_number(text):
     return int("".join(str(int(c, 36)) for c in text))
 
 
+def coded_number(text):
+    """The number the code's `mod97` reads from letters and digits: a
+    letter as its code point less 55. It reads upper case as
+    `iban_number` does, and a lower-case letter as 32 more than its
+    capital."""
+    return int("".join(c if "0" <= c <= "9" else str(ord(c) - 55) for c in text))
+
+
 def oracle_iban(text):
     ok = bool(IBAN_SHAPE.fullmatch(text)) and iban_number(text[4:] + text[:4]) % 97 == 1
     return str(ok).lower()
@@ -417,10 +425,10 @@ IBAN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 IBAN_POOL = IBAN_CHARS + "az -.\xe9"
 
 
-def forged(country, bban):
+def forged(country, bban, number=iban_number):
     """country, check digits and BBAN, the check digits chosen so that
-    the mod-97 sum passes whatever the shape."""
-    return country + f"{98 - iban_number(bban + country + '00') % 97:02d}" + bban
+    the mod-97 sum of `number` passes whatever the shape."""
+    return country + f"{98 - number(bban + country + '00') % 97:02d}" + bban
 
 
 def forged_check(country, check, bban):
@@ -432,11 +440,18 @@ def forged_check(country, check, bban):
             return country + check + bban + f"{n:02d}"
 
 
-# Strings whose mod-97 sum passes but whose shape does not, and the
-# edges of the BBAN's length, so only the shape decides; and letters in
-# the check-digit places.
+# IBANs on the edges of the shape, with check digits that make the
+# mod-97 sum pass, so only the shape decides: country codes with a digit
+# or in lower case, BBANs of 0, 1, 30 and 31 characters or in lower
+# case, and letters in the check-digit places. The tests read a letter
+# as int(c, 36), and the code as its code point less 55; the two agree
+# on upper case but not on lower case. Each sum passes both ways, but
+# no string with lower case only in its country code can: the two sums
+# then always differ mod 97. So that case has two strings, one passing
+# each way.
 IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
-                    forged("GB", "nwbk1234"), forged("GB", ""), forged("GB", "A"),
+                    forged("gb", "NWBK60161331926819", coded_number),
+                    forged("GB", "nwbk6x16133y926819"), forged("GB", ""), forged("GB", "A"),
                     forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
                     forged("GB", "1" * 31), forged("ZZ", "Z" * 30),
                     forged_check("GB", "A1", "NWBK1234"), forged_check("GB", "1A", "NWBK1234"),

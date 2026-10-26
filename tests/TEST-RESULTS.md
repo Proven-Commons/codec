@@ -7,7 +7,7 @@ Written by `tests/run_tests.py`. Rerun it to check these numbers.
 - Seed: 20261024
 - Inputs: 1000000
 - Mutated: 319602 of the inputs are mutated encodings or frames
-- By operation: b32dec 64902, b32enc 32444, b64dec 64902, b64enc 32444, crc 32445, error 89, frame 32443, hexdec 97347, hexenc 32447, iban 64914, ibancheck 64930, luhn 98450, luhncheck 33554, pctdec 162787, pctenc 32699, pemdec 55554, pemenc 32763, unframe 64886
+- By operation: b32dec 64901, b32enc 32443, b64dec 64902, b64enc 32444, crc 32445, error 89, frame 32443, hexdec 97347, hexenc 32447, iban 64915, ibancheck 64931, luhn 98450, luhncheck 33554, pctdec 162787, pctenc 32699, pemdec 55554, pemenc 32763, unframe 64886
 - Malformed requests answered `error`: 89 of 89
 - Last lines with no LF, sent alone, answered right: 6 of 6
 - Strict base 64 rejections where Python decodes: 5796 (5796 with unused bits before the padding not zero, 0 with padding after a whole group, which Python 3.11 and 3.12 before 3.12.4 decode)
