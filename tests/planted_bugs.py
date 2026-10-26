@@ -467,7 +467,7 @@ BUGS = [
      'if c.toNat < 0x80 then (decode rest).map (c.toNat.toUInt8 :: ·) else none',
      '(decode rest).map (c.toNat.toUInt8 :: ·)',
      None),
-    ('p05_bad_escape_passed_through', "Codec/Percent.lean",
+    ('p05_cut_short_escape_passed_through', "Codec/Percent.lean",
      "  | '%' :: _ => none",
      "  | '%' :: rest => (decode rest).map (0x25 :: ·)",
      None),
@@ -478,6 +478,14 @@ BUGS = [
     ('p07_space_refused', "Codec/Percent.lean",
      'if c.toNat < 0x80 then',
      "if c.toNat < 0x80 ∧ c ≠ ' ' then",
+     None),
+    ('p08_bad_digit_escape_passed_through', "Codec/Percent.lean",
+     '    match Hex.value hi, Hex.value lo, decode rest with\n'
+     '    | some h, some l, some tail => some ((h * 16 + l).toUInt8 :: tail)\n'
+     '    | _, _, _ => none',
+     '    match Hex.value hi, Hex.value lo with\n'
+     '    | some h, some l => (decode rest).map ((h * 16 + l).toUInt8 :: ·)\n'
+     '    | _, _ => (decode (hi :: lo :: rest)).map (0x25 :: ·)',
      None),
     # PEM.
     ('q01_lines_of_76', "Codec/Pem.lean",
