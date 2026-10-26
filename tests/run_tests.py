@@ -32,12 +32,15 @@ compared as usual, and fails.
 
 It builds the executable first, writes tests/TEST-RESULTS.md, and exits
 non-zero if any input disagrees. It needs Python 3.11 or later.
+
+The cases are made from the seed as they are sent, and made again from
+the seed to check the answers as they come back. No case is kept, so
+memory stays small however many inputs there are.
 """
 
 import argparse
 import base64
 import binascii
-import itertools
 import platform
 import random
 import re
@@ -383,40 +386,81 @@ def cases(seed, count):
         made += len(batch)
 
 
-def run_tool(data, timeout=TIMEOUT):
-    """The tool's answer lines for `data`, and a note on how the run
-    failed, or None. Lines end in LF only; the output is read as bytes,
-    so a CR left in a line fails the comparison. No right answer is
-    longer than one and a half times its request plus 16 bytes (`pctenc`
-    writes three characters for a byte the request can give in two,
-    such as "0,"), so a tool that writes more than twice its input and
-    64 bytes a line is stopped, not read until memory runs out."""
-    raw = data.encode("utf-8")
-    limit = 2 * len(raw) + 64 * (data.count("\n") + 1)
+def run_tool(chunks, answer, timeout=TIMEOUT):
+    """Send the text in `chunks` to the tool as it is made, and pass each
+    line the tool prints to `answer` as it comes. Return a note on how
+    the run failed, or None. Lines end in LF only; the output is read as
+    bytes, so a CR left in a line fails the comparison. No right answer
+    is longer than one and a half times its request plus 16 bytes
+    (`pctenc` writes three characters for a byte the request can give in
+    two, such as "0,"), so a tool that writes more than twice what it
+    was sent and 64 bytes a line is stopped, not read until memory runs
+    out."""
     try:
         proc = subprocess.Popen([str(EXE)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
     except OSError as e:
-        return [], f"could not run {EXE.relative_to(ROOT)}: {e.strerror or e}"
-    out, err = bytearray(), bytearray()
+        return f"could not run {EXE.relative_to(ROOT)}: {e.strerror or e}"
+    sent = {"bytes": 0, "lines": 0}
+    over, no_lf, err, crashed = [], [], bytearray(), []
 
     def feed():
         try:
-            proc.stdin.write(raw)
+            parts, size, lines = [], 0, 0
+            for chunk in chunks:
+                raw = chunk.encode("utf-8")
+                parts.append(raw)
+                size += len(raw)
+                lines += chunk.count("\n")
+                if size >= 1 << 16:
+                    # Counted before it is written, so the limit is never short.
+                    sent["bytes"] += size
+                    sent["lines"] += lines
+                    proc.stdin.write(b"".join(parts))
+                    parts, size, lines = [], 0, 0
+            sent["bytes"] += size
+            sent["lines"] += lines
+            proc.stdin.write(b"".join(parts))
             proc.stdin.close()
         except (BrokenPipeError, ValueError):
             pass
+        except BaseException as e:
+            crashed.append(e)
+            proc.kill()
 
-    def drain(stream, buf, cap):
-        while chunk := stream.read1(1 << 16):
-            buf += chunk
-            if len(buf) > cap:
+    def drain_out():
+        line, read = bytearray(), 0
+        try:
+            while chunk := proc.stdout.read1(1 << 16):
+                read += len(chunk)
+                limit = 2 * sent["bytes"] + 64 * (sent["lines"] + 1)
+                start = 0
+                while (end := chunk.find(b"\n", start)) >= 0:
+                    line += chunk[start:end]
+                    answer(line.decode("utf-8", "backslashreplace"))
+                    line.clear()
+                    start = end + 1
+                line += chunk[start:]
+                if read > limit:
+                    over.append(limit)
+                    proc.kill()
+                    return
+            if line:
+                no_lf.append(True)
+                answer(line.decode("utf-8", "backslashreplace"))
+        except BaseException as e:
+            crashed.append(e)
+            proc.kill()
+
+    def drain_err():
+        while chunk := proc.stderr.read1(1 << 16):
+            err.extend(chunk)
+            if len(err) > 1 << 20:
                 proc.kill()
                 return
 
-    threads = [threading.Thread(target=feed),
-               threading.Thread(target=drain, args=(proc.stdout, out, limit)),
-               threading.Thread(target=drain, args=(proc.stderr, err, 1 << 20))]
+    threads = [threading.Thread(target=feed), threading.Thread(target=drain_out),
+               threading.Thread(target=drain_err)]
     for t in threads:
         t.start()
     problem = None
@@ -428,19 +472,16 @@ def run_tool(data, timeout=TIMEOUT):
     for t in threads:
         t.join()
     proc.wait()
-    stdout = bytes(out)
-    if len(out) > limit:
-        problem = problem or f"more than {limit} bytes of output, stopped"
+    if crashed:
+        raise crashed[0]
+    if over:
+        problem = problem or f"more than {over[0]} bytes of output, stopped"
     elif proc.returncode != 0 and not problem:
         tail = " / ".join(err.decode("utf-8", "backslashreplace").splitlines()[-3:])
         problem = f"exit status {proc.returncode}: {tail}"
-    text = stdout.decode("utf-8", "backslashreplace")
-    if text and not text.endswith("\n"):
+    if no_lf:
         problem = problem or "the last answer has no LF"
-    lines = text.split("\n")
-    if lines and lines[-1] == "":
-        lines.pop()
-    return lines, problem
+    return problem
 
 
 def oracle():
@@ -490,29 +531,57 @@ def main():
                "- Inputs: 0", "- Failures: 1 (`lake build codec` failed)", ""])
         sys.exit("lake build codec failed:\n" + log)
 
-    items = list(cases(args.seed, args.count))
-    out, problem = run_tool("".join(req + "\n" for _, req, _, _, _ in items))
-    # How the whole run failed goes first, where the record shows it.
-    failures = [("(whole run)", "a clean run", problem)] if problem else []
-    for item, got in itertools.zip_longest(items, out):
+    # The answers are checked against a second run of the same cases as
+    # they come, so neither the cases nor the answers are kept.
+    expected = cases(args.seed, args.count)
+    by_op = {}
+    n = {"inputs": 0, "mutated": 0, PADDING_BITS: 0, EXTRA_PADDING: 0, "malformed": 0,
+         "agree": 0, "failed": 0}
+    failures = []  # the first 50, in order
+
+    def fail(req, want, got):
+        n["failed"] += 1
+        if len(failures) < 50:
+            failures.append((req, want, got))
+
+    def tally(item):
+        label, _, _, note, mutated = item
+        n["inputs"] += 1
+        by_op[label] = by_op.get(label, 0) + 1
+        n["mutated"] += mutated
+        if note in (PADDING_BITS, EXTRA_PADDING):
+            n[note] += 1
+
+    def check(got):
+        item = next(expected, None)
         if item is None:
-            failures.append(("(no request)", "nothing", got))
-        elif got != item[2]:
-            failures.append((item[1], item[2], "(no answer)" if got is None else got))
+            fail("(no request)", "nothing", got)
+            return
+        tally(item)
+        if item[0] == "error" and got == "error":
+            n["malformed"] += 1
+        if got == item[2]:
+            n["agree"] += 1
+        else:
+            fail(item[1], item[2], got)
+
+    problem = run_tool((req + "\n" for _, req, _, _, _ in cases(args.seed, args.count)), check)
+    for item in expected:
+        tally(item)
+        fail(item[1], item[2], "(no answer)")
+    # How the whole run failed goes first, where the record shows it.
+    if problem:
+        failures.insert(0, ("(whole run)", "a clean run", problem))
+        n["failed"] += 1
     eof_right = 0
     for req, want in AT_EOF:
-        got, problem = run_tool(req, timeout=60)
-        if got == [want] and not problem:
+        got = []
+        eof_problem = run_tool([req], got.append, timeout=60)
+        if got == [want] and not eof_problem:
             eof_right += 1
         else:
-            failures.append((req + " (at end of input)", want, f"{got} {problem or ''}".strip()))
-    by_op = {}
-    for label, _, _, _, _ in items:
-        by_op[label] = by_op.get(label, 0) + 1
-    mutated = sum(1 for item in items if item[4])
-    malformed = [got for item, got in zip(items, out) if item[0] == "error"]
-    pad_bits = sum(1 for item in items if item[3] == PADDING_BITS)
-    extra_pad = sum(1 for item in items if item[3] == EXTRA_PADDING)
+            fail(req + " (at end of input)", want, f"{got} {eof_problem or ''}".strip())
+    pad_bits, extra_pad = n[PADDING_BITS], n[EXTRA_PADDING]
 
     lines = [
         "# Test results",
@@ -522,14 +591,14 @@ def main():
         f"- Oracle: {oracle()}",
         f"- Lean: {lean_version()}",
         f"- Seed: {args.seed}",
-        f"- Inputs: {len(items)}",
-        f"- Mutated: {mutated} of the inputs are mutated encodings or frames",
+        f"- Inputs: {n['inputs']}",
+        f"- Mutated: {n['mutated']} of the inputs are mutated encodings or frames",
         f"- By operation: " + ", ".join(f"{k} {v}" for k, v in sorted(by_op.items())),
-        f"- Malformed requests answered `error`: {malformed.count('error')} of {by_op.get('error', 0)}",
+        f"- Malformed requests answered `error`: {n['malformed']} of {by_op.get('error', 0)}",
         f"- Last lines with no LF, sent alone, answered right: {eof_right} of {len(AT_EOF)}",
         f"- Strict base 64 rejections where Python decodes: {pad_bits + extra_pad} "
         f"({pad_bits} with {PADDING_BITS}, {extra_pad} with {EXTRA_PADDING})",
-        f"- Failures: {len(failures)}",
+        f"- Failures: {n['failed']}",
         "",
     ]
     if failures:
@@ -538,9 +607,8 @@ def main():
                   for req, want, got in failures[:50]]
         lines.append("")
     write(lines)
-    agree = sum(1 for item, got in zip(items, out) if got == item[2])
-    print(f"{agree}/{len(items)} inputs agree, {len(failures)} failures; results in {RESULTS}")
-    return 1 if failures else 0
+    print(f"{n['agree']}/{n['inputs']} inputs agree, {n['failed']} failures; results in {RESULTS}")
+    return 1 if n["failed"] else 0
 
 
 if __name__ == "__main__":

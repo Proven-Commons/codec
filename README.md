@@ -19,7 +19,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`,
 | Base 64 writes a final one or two bytes with zero fill and `==` or `=` padding, as RFC 4648 section 4 says. | `Spec.base64_encode_one`, `Spec.base64_encode_two` |
 | Base 64 decoding gives back what was encoded. | `Spec.base64_decode_encode` |
 | Base 64 decoding accepts exactly the encodings and nothing else. | `Spec.base64_encode_decode` |
-| Base 64 matches the test vectors of RFC 4648, section 10. | `Spec.base64_rfc4648_vectors` |
+| Base 64 matches the test vectors of RFC 4648, section 10: encoding gives them, and decoding reads them back. | `Spec.base64_rfc4648_vectors` |
 | The table-driven CRC-32 equals the CRC-32 defined one bit at a time. | `Spec.crc32_eq` |
 | The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Spec.crc32_check` |
 | A frame is the message followed by its CRC-32, low byte first. | `Spec.frame_layout` |
@@ -67,7 +67,7 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for.
+`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for. `tests/planted_bugs.py` plants 103 small bugs in the tool, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch 94 of them and why the other 9 change nothing the tool prints.
 
 ## Layout
 

@@ -40,7 +40,8 @@ def main():
         sys.exit("lake build codec failed:\n" + build.stdout + build.stderr)
     reqs = [req for label, req, _, _, _ in run_tests.cases(args.seed, args.count)
             if label == "pctdec"]
-    ours, problem = run_tests.run_tool("".join(r + "\n" for r in reqs))
+    ours = []
+    problem = run_tests.run_tool((r + "\n" for r in reqs), ours.append)
     if problem or len(ours) != len(reqs):
         sys.exit(f"the tool failed: {problem}")
     BUILD.mkdir(parents=True, exist_ok=True)
