@@ -20,13 +20,23 @@
     pemdec 45,45,...      prints  ok:88;0, the label's character codes and
                                   the data (or none)
 
+    luhn 7,9,9,2,7,3      prints  true or false: whether the digits pass
+                                  the Luhn check
+    luhncheck 7,9,9,2     prints  the Luhn check digit for the digits
+                                  (error when a number is above 9)
+    iban 71,66,50,57,...  prints  true or false: whether the text, given as
+                                  character codes, passes the IBAN check
+    ibancheck 71,66;78,87 prints  ok: and the character codes of the two
+                                  check digits for a country code and a
+                                  BBAN (or none)
+
   `pemenc` takes two lists, the label's character codes and the bytes,
   separated by `;`. PEM text holds line ends, so it goes in and out as
   character codes.
 
   A request is an operation, then optionally one space and its numbers;
-  with no numbers after the space, the input is empty. `pemenc` is the
-  exception: it needs its one space and one `;`. A malformed
+  with no numbers after the space, the input is empty. `pemenc` and
+  `ibancheck` are the exceptions: each needs its one space and one `;`. A malformed
   request prints `error`: any other line, an unknown operation, a number
   that is not plain decimal digits, a byte above 255, or a character
   code that is not a Unicode scalar value. A line may end in LF or
@@ -75,6 +85,17 @@ def pemEncode (arg : String) : Option String :=
       | none => "none"
   | _ => none
 
+/-- `ibancheck`: the country code's character codes, `;`, and the BBAN's. -/
+def ibanCheck (arg : String) : Option String :=
+  match arg.splitOn ";" with
+  | [c, b] => do
+    let country ← toChars (← numbers c)
+    let bban ← toChars (← numbers b)
+    return match Iban.checkDigits country bban with
+      | some ck => "ok:" ++ showChars ck
+      | none => "none"
+  | _ => none
+
 /-- The answer to one request, or `none` when the request is malformed. -/
 def answer (op : String) (ns : List Nat) : Option String := do
   let result : Option (List UInt8) → String
@@ -90,6 +111,9 @@ def answer (op : String) (ns : List Nat) : Option String := do
   | "unframe" => return result (Crc32.unframe (← toBytes ns))
   | "pctenc" => return String.ofList (Percent.encode (← toBytes ns))
   | "pctdec" => return result (Percent.decode (← toChars ns))
+  | "luhn" => return toString (Luhn.valid ns)
+  | "luhncheck" => if ns.all (· ≤ 9) then return toString (Luhn.checkDigit ns) else none
+  | "iban" => return toString (Iban.valid (← toChars ns))
   | "pemdec" =>
     return match Pem.decode (← toChars ns) with
       | some (label, data) => "ok:" ++ showChars label ++ ";" ++ showBytes data
@@ -102,6 +126,8 @@ def request (line : String) : Option String :=
   match line.splitOn " " with
   | ["pemenc", arg] => pemEncode arg
   | ["pemenc"] => none
+  | ["ibancheck", arg] => ibanCheck arg
+  | ["ibancheck"] => none
   | [op] => answer op []
   | [op, arg] => numbers arg >>= answer op
   | _ => none

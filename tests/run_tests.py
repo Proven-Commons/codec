@@ -4,7 +4,8 @@
 The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
 `base64.b64encode` and strict `binascii.a2b_base64`, `zlib.crc32`, and
 for percent-encoding `urllib.parse.quote` with no safe characters and
-`urllib.parse.unquote_to_bytes`; for PEM, `ssl.DER_cert_to_PEM_cert`
+`urllib.parse.unquote_to_bytes`; for Luhn and IBAN, the rules written
+here, with Python's own integers for the IBAN number mod 97; for PEM, `ssl.DER_cert_to_PEM_cert`
 for the `CERTIFICATE` label, and for other labels an encoder and a strict
 parser written here from the ABNF of RFC 7468, section 3, with the base
 64 checked by strict `binascii.a2b_base64`. `unquote_to_bytes` passes a bad escape
@@ -148,6 +149,11 @@ MALFORMED = [
     ("hexdec 48,1114112", "beyond Unicode"),
     ("pctenc 37,256", "a byte above 255"),
     ("pctdec 37,55296", "a surrogate, not a character"),
+    ("luhncheck 1,10", "a number above 9"),
+    ("ibancheck", "no arguments"),
+    ("ibancheck 71,66", "no `;`"),
+    ("ibancheck 71;66;1", "two `;`"),
+    ("iban 71,55296", "a surrogate, not a character"),
     ("pemenc", "no arguments"),
     ("pemenc 88", "no `;` between the label and the data"),
     ("pemenc 88;1;2", "two `;`"),
@@ -333,6 +339,94 @@ def mutate_pem(rng, text):
     return text[:i] + "\n" + text[i:]
 
 
+def luhn_sum(ds):
+    """The Luhn sum: from the right, every second digit doubled, less 9
+    when the double is above 9."""
+    total = 0
+    for i, d in enumerate(reversed(ds)):
+        if i % 2 == 1:
+            d = 2 * d - 9 if 2 * d > 9 else 2 * d
+        total += d
+    return total
+
+
+def oracle_luhn(ds):
+    return str(all(d <= 9 for d in ds) and luhn_sum(ds) % 10 == 0).lower()
+
+
+def oracle_luhn_check(ds):
+    return str((10 - luhn_sum(ds + [0]) % 10) % 10)
+
+
+IBAN_SHAPE = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}")
+# Example IBANs, for the SWIFT IBAN Registry's countries among them.
+IBAN_EXAMPLES = ["GB29NWBK60161331926819", "DE89370400440532013000", "FR1420041010050500013M02606",
+                 "NO9386011117947", "MT84MALT011000012345MTLCAST001S", "NL91ABNA0417164300",
+                 "BE68539007547034", "CH9300762011623852957", "ES9121000418450200051332",
+                 "IT60X0542811101000000123456", "LC55HEMM000100010012001200023015",
+                 "FR2130006000010001234B15697", "FR21300060000100012341B5697"]
+
+
+def iban_number(text):
+    return int("".join(str(int(c, 36)) for c in text))
+
+
+def oracle_iban(text):
+    ok = bool(IBAN_SHAPE.fullmatch(text)) and iban_number(text[4:] + text[:4]) % 97 == 1
+    return str(ok).lower()
+
+
+def oracle_iban_check(country, bban):
+    if not IBAN_SHAPE.fullmatch(country + "00" + bban):
+        return "none"
+    return "ok:" + text_nums(f"{98 - iban_number(bban + country + '00') % 97:02d}")
+
+
+IBAN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+IBAN_POOL = IBAN_CHARS + "az -.\xe9"
+
+
+def random_iban(rng):
+    country = "".join(rng.choice(IBAN_CHARS[:26]) for _ in range(2))
+    bban = "".join(rng.choice(rng.choice([IBAN_CHARS, IBAN_CHARS[26:]]))
+                   for _ in range(rng.randint(1, 30)))
+    check = f"{98 - iban_number(bban + country + '00') % 97:02d}"
+    return country, bban, country + check + bban
+
+
+def mutate_iban(rng, text):
+    kind = rng.randrange(6)
+    i = rng.randrange(len(text))
+    if kind == 0:
+        # A character of the same kind in its place.
+        pool = IBAN_CHARS[26:] if text[i].isdigit() else IBAN_CHARS[:26]
+        return text[:i] + rng.choice(pool) + text[i + 1:]
+    if kind == 1 and len(text) > 1:
+        j = rng.randrange(len(text) - 1)
+        return text[:j] + text[j + 1] + text[j] + text[j + 2:]
+    if kind == 2:
+        return text[:i] + rng.choice(IBAN_POOL) + text[i + 1:]
+    if kind == 3:
+        return text[:i] + text[i + 1:]
+    if kind == 4:
+        return text[:i] + rng.choice(IBAN_POOL) + text[i:]
+    return text.lower() if rng.random() < 0.5 else text + rng.choice(IBAN_CHARS)
+
+
+def mutate_digits(rng, ds):
+    out = list(ds)
+    kind = rng.randrange(3)
+    if kind == 0 and out:
+        i = rng.randrange(len(out))
+        out[i] = rng.randrange(10)
+    elif kind == 1 and len(out) > 1:
+        i = rng.randrange(len(out) - 1)
+        out[i], out[i + 1] = out[i + 1], out[i]
+    else:
+        out.insert(rng.randint(0, len(out)), rng.randrange(10))
+    return out
+
+
 def oracle_unframe(fr):
     if len(fr) < 4:
         return None
@@ -422,6 +516,16 @@ def fixed_cases():
     # encoder's and the decoder's per-character rules.
     for b in range(256):
         items.append(("pctenc", f"pctenc {b}", oracle_pctenc(bytes([b])), None, False))
+    # Luhn: every number of up to three digits; IBAN: the examples.
+    for n in range(4):
+        for ds in itertools.product(range(10), repeat=n):
+            ds = list(ds)
+            items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
+            items.append(("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False))
+    for text in IBAN_EXAMPLES:
+        items.append(("iban", f"iban {text_nums(text)}", oracle_iban(text), None, False))
+        items.append(("ibancheck", f"ibancheck {text_nums(text[:2])};{text_nums(text[4:])}",
+                      oracle_iban_check(text[:2], text[4:]), None, False))
     # PEM: every label above with data at the line edges (48 bytes are
     # one full line), and every bad label.
     for label in PEM_LABELS + BAD_PEM_LABELS:
@@ -487,6 +591,20 @@ def cases(seed, count):
         batch.append(("pctdec", f"pctdec {text_nums(bad_pct)}", decoded(oracle_pctdec(bad_pct)), None, True))
         raw = "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(8)))
         batch.append(("pctdec", f"pctdec {text_nums(raw)}", decoded(oracle_pctdec(raw)), None, False))
+        ds = [rng.randrange(10) for _ in range(rng.randint(0, 24))]
+        ds_valid = ds + [int(oracle_luhn_check(ds))]
+        country, bban, iban = random_iban(rng)
+        bad_iban = changed(mutate_iban, rng, iban)
+        bad_ds = changed(mutate_digits, rng, ds_valid)
+        batch += [
+            ("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False),
+            ("luhn", f"luhn {nums(ds_valid)}", oracle_luhn(ds_valid), None, False),
+            ("luhn", f"luhn {nums(bad_ds)}", oracle_luhn(bad_ds), None, True),
+            ("ibancheck", f"ibancheck {text_nums(country)};{text_nums(bban)}",
+             oracle_iban_check(country, bban), None, False),
+            ("iban", f"iban {text_nums(iban)}", oracle_iban(iban), None, False),
+            ("iban", f"iban {text_nums(bad_iban)}", oracle_iban(bad_iban), None, True),
+        ]
         label = rng.choice(PEM_LABELS + BAD_PEM_LABELS[:3])
         pem_data = data[: rng.choice([0, 1, 47, 48, 49, 96, 97, 200, len(data)])]
         batch.append(("pemenc", f"pemenc {text_nums(label)};{nums(pem_data)}",
@@ -566,7 +684,8 @@ def oracle():
     return (f"Python {platform.python_version()} `binascii`, `base64`, `zlib` "
             f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`; for PEM, a strict encoder and "
             "parser written in tests/run_tests.py from RFC 7468, with `ssl.DER_cert_to_PEM_cert` "
-            "and `ssl.PEM_cert_to_DER_cert` for the `CERTIFICATE` label")
+            "and `ssl.PEM_cert_to_DER_cert` for the `CERTIFICATE` label; for Luhn and IBAN, the "
+            "rules written in tests/run_tests.py, with Python's integers for the IBAN number")
 
 
 def lean_version():

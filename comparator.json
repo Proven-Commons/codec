@@ -27,7 +27,18 @@
     "Spec.pem_encode_iff",
     "Spec.pem_decode_iff",
     "Spec.pem_decode_encode",
-    "Spec.pem_vectors"
+    "Spec.pem_vectors",
+    "Spec.luhn_valid_iff",
+    "Spec.luhn_checkDigit",
+    "Spec.luhn_single_error",
+    "Spec.luhn_adjacent_swap",
+    "Spec.luhn_swap_09",
+    "Spec.luhn_vectors",
+    "Spec.iban_valid_iff",
+    "Spec.iban_checkDigits_iff",
+    "Spec.iban_substitution",
+    "Spec.iban_adjacent_swap",
+    "Spec.iban_vectors"
   ],
   "permitted_axioms": [
     "propext",

@@ -289,3 +289,74 @@ def Spec.figure15 : List UInt8 := [
     0xB4, 0x95, 0x8F, 0x2F, 0xBC, 0x9D, 0x94, 0x4F, 0xB9, 0x50, 0x6E, 0x14,
     0x36, 0x49, 0xF7, 0x12, 0x8B, 0x3C, 0x12, 0x26, 0x41, 0xCA, 0x2F, 0x43,
     0x56, 0xCC, 0x9F, 0xCB, 0xD7, 0x9E, 0x8E, 0x1F, 0xBC, 0x01, 0x78, 0x29]
+
+/-! ## Luhn
+
+The check digit of ISO/IEC 7812-1, Annex B, from H. P. Luhn's US patent
+2,950,048: counting from the right, starting with the check digit, every
+second digit is doubled, and when a doubled digit is above 9, 9 is taken
+off it (the same as adding its two digits). The number is valid when the
+sum of the results is a multiple of 10. -/
+
+/-- The share of digit `d` at place `i` from the right, the check digit
+    being place 0: as it is at an even place; doubled at an odd place,
+    less 9 when the double is above 9. -/
+def Spec.luhnShare (i d : Nat) : Nat :=
+  if i % 2 = 1 then (if 2 * d > 9 then 2 * d - 9 else 2 * d) else d
+
+/-- The Luhn sum: the shares of all the digits. -/
+def Spec.luhnSum (ds : List Nat) : Nat :=
+  ((List.range ds.length).map fun i => Spec.luhnShare i (ds.reverse.getD i 0)).sum
+
+-- 79927398713: 3 + 2 + 7 + 7 + 7 + 6 + 2 + 9 + 9 + 9 + 7 (from the
+-- right; 1 8 3 2 9 doubled are 2 16 6 4 18, less 9 above 9: 2 7 6 4 9).
+example : Spec.luhnSum [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = 70 := by decide
+
+/-! ## IBAN
+
+ISO 13616-1, with the check digits of ISO 7064 MOD 97-10. In its
+electronic form an IBAN is a country code of two letters, two check
+digits, and a BBAN of up to 30 letters and digits, letters in upper
+case. To check it, the first four characters move to the end, each
+letter is replaced by its number, A = 10 to Z = 35, and the digits are
+read as one number, which must leave 1 when divided by 97. Check digits
+are computed with 00 in their place, as 98 less that remainder, so they
+run from 02 to 98. The lengths and formats of each country's BBAN, in
+the SWIFT IBAN Registry, are not checked. -/
+
+def Spec.ibanDigit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
+
+def Spec.ibanLetter (c : Char) : Prop := 'A' ≤ c ∧ c ≤ 'Z'
+
+/-- A digit's value, or a letter's: A = 10 to Z = 35. -/
+def Spec.ibanValue (c : Char) : Nat :=
+  if '0' ≤ c ∧ c ≤ '9' then c.toNat - 48 else c.toNat - 55
+
+/-- The decimal digits a character becomes: one for a digit, two for a
+    letter. -/
+def Spec.ibanDigits (c : Char) : List Nat :=
+  if Spec.ibanValue c < 10 then [Spec.ibanValue c] else [Spec.ibanValue c / 10, Spec.ibanValue c % 10]
+
+/-- The number decimal digits write, most significant first. -/
+def Spec.decimal (ds : List Nat) : Nat :=
+  ds.foldl (fun n d => 10 * n + d) 0
+
+/-- The number a string of letters and digits becomes. -/
+def Spec.ibanNumber (cs : List Char) : Nat :=
+  Spec.decimal (cs.flatMap Spec.ibanDigits)
+
+/-- Two letters, two digits, then a BBAN of 1 to 30 letters and digits. -/
+def Spec.IbanShape (s : List Char) : Prop :=
+  ∃ c0 c1 k0 k1 bban, s = c0 :: c1 :: k0 :: k1 :: bban ∧
+    Spec.ibanLetter c0 ∧ Spec.ibanLetter c1 ∧ Spec.ibanDigit k0 ∧ Spec.ibanDigit k1 ∧
+    1 ≤ bban.length ∧ bban.length ≤ 30 ∧ ∀ c ∈ bban, Spec.ibanDigit c ∨ Spec.ibanLetter c
+
+/-- An IBAN that passes the check: the right shape, and the number of
+    the string with its first four characters moved to the end leaves 1
+    when divided by 97. -/
+def Spec.IbanValid (s : List Char) : Prop :=
+  Spec.IbanShape s ∧ Spec.ibanNumber (s.drop 4 ++ s.take 4) % 97 = 1
+
+-- The letters become 10 to 35, and "WEST" becomes 32 14 28 29.
+example : ("AZWEST".toList.flatMap Spec.ibanDigits) =
+    [1, 0, 3, 5, 3, 2, 1, 4, 2, 8, 2, 9] := by decide

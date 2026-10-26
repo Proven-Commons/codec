@@ -1,6 +1,6 @@
 # Specification: codec
 
-Five small codecs: hex, base 64, CRC-32 with a frame around a message, percent-encoding, and PEM. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
+Five small codecs: hex, base 64, CRC-32 with a frame around a message, percent-encoding, and PEM; and two check digits, Luhn and IBAN. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
 
 Bytes are `List UInt8` and text is `List Char`. The command-line tool converts at the edges.
 
@@ -48,9 +48,26 @@ Scope: RFC 7468, the textual encoding of PKIX, PKCS, and CMS structures, in its 
 
 The strict form has no text for empty data, since its last line of base 64 needs four characters. Here empty data is the BEGIN and END lines with nothing between, as Go's `encoding/pem` and Python's `ssl.DER_cert_to_PEM_cert` write it. With LF line ends, only the lax form (Figure 2) allows that text; the text the standard form (Figure 1) gives empty data, with one empty line between BEGIN and END, is refused.
 
+## Luhn
+
+Scope: the check digit of ISO/IEC 7812-1, Annex B, from H. P. Luhn's US patent 2,950,048. Numbers are lists of digits 0 to 9, most significant first.
+
+- `valid` holds when every digit is 0 to 9 and the Luhn sum is a multiple of 10. The sum counts from the right, starting with the check digit: every second digit is doubled, and 9 is taken off a doubled digit above 9. The empty number passes, since its sum is 0.
+- `checkDigit` gives the digit to put after a payload so that the whole is valid; it is the only such digit.
+- What the check catches is a theorem: any one digit typed wrong, and any two adjacent different digits typed in the wrong order, except 0 and 9. That exception is a theorem too.
+
+## IBAN
+
+Scope: the check digits of ISO 13616-1, by ISO 7064 MOD 97-10, on the electronic form: a country code of two upper-case letters, two check digits, and a BBAN of 1 to 30 upper-case letters and digits.
+
+- `valid` holds when the text has that shape and, with its first four characters moved to the end and each letter written as A = 10 to Z = 35, the digits read as one number leave 1 when divided by 97.
+- `checkDigits` gives, for a country code and a BBAN of the right shape, the two digits from 02 to 98 that make the IBAN pass: 98 less the remainder of the BBAN, the country code and `00`. There is never more than one, and it fails on the wrong shape.
+- What the check catches is a theorem: one digit typed for another or one letter for another, and two adjacent digits or two adjacent letters typed in the wrong order. Where the rearrangement splits an adjacent pair, the 4th and 5th characters, the swap is still caught, since 10 has order 96 mod 97. A letter and a digit swapped need not be caught: B is 11, so `4B1` and `41B` both read as `4111`, and a proved vector gives two IBANs that pass and differ only so.
+- Not checked: each country's BBAN format and length, in the SWIFT IBAN Registry, and whether the country code is one. Check digits 00, 01 and 99 never come from the computation, but an IBAN with them can pass the check.
+
 ## Valid inputs and errors
 
-Every encoder input, except a PEM label that the `label` rule refuses, and every `crc32` and `frame` input is valid. The decoders and `unframe` return `none` for anything they do not accept, and PEM encoding returns `none` for such a label. No function can fail any other way.
+Every encoder input, except a PEM label that the `label` rule refuses, and every `crc32` and `frame` input is valid. The decoders and `unframe` return `none` for anything they do not accept, PEM encoding returns `none` for such a label, and `Iban.checkDigits` returns `none` for a country code or BBAN of the wrong shape. No function can fail any other way.
 
 The command-line tool in `Main.lean` reads one request per line and prints one answer per line. A request is an operation, then optionally one space and its comma-separated numbers; with no numbers after the space, the input is empty. `pemenc` is the exception: after its one space come the label's character codes, `;`, and the bytes, each list possibly empty, and it answers `ok:` and the character codes of the PEM text, or `none`. `pemdec` answers `ok:`, the label's character codes, `;`, and the bytes, or `none`. The tool prints `error` for any other line, including `pemenc` without its space or its `;`, an unknown operation, a number that is not plain decimal digits, a byte above 255, or a character code that is not a Unicode scalar value. A line may end in LF or CR LF; nothing else around a request is ignored.
 
@@ -82,9 +99,20 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | PEM encoding gives `Spec.pemText` for a label the `label` rule allows, and fails on any other label. | `Spec.pem_encode_iff` |
 | PEM decoding gives a label and data exactly when `Spec.StrictPem` holds: the text is the message's lines, each followed by any `eol`. | `Spec.pem_decode_iff` |
 | PEM decoding gives back what was encoded. | `Spec.pem_decode_encode` |
+| `Luhn.valid` decides the Luhn sum's rule. | `Spec.luhn_valid_iff` |
+| The check digit is a digit, and the only one that makes the payload valid. | `Spec.luhn_checkDigit` |
+| One digit typed wrong is caught. | `Spec.luhn_single_error` |
+| Two adjacent different digits swapped are caught, unless they are 0 and 9. | `Spec.luhn_adjacent_swap` |
+| An adjacent 0 and 9 swapped is never caught. | `Spec.luhn_swap_09` |
+| 79927398713, its check digit, a wrong check digit, a test card number, and `10`. | `Spec.luhn_vectors` |
+| `Iban.valid` decides `Spec.IbanValid`: the shape, and the rearranged number mod 97 is 1. | `Spec.iban_valid_iff` |
+| `checkDigits` gives exactly the two digits from 02 to 98 that make the IBAN pass. | `Spec.iban_checkDigits_iff` |
+| One digit for another, or one letter for another, is caught. | `Spec.iban_substitution` |
+| Two adjacent digits, or two adjacent letters, swapped are caught. | `Spec.iban_adjacent_swap` |
+| Example IBANs and their check digits; a digit wrong; lower case refused; a letter and a digit swapped, both passing. | `Spec.iban_vectors` |
 | RFC 7468's Figure 15, written exactly as the RFC prints it and read back with CR LF; empty data and an empty label; labels the rule refuses; texts the decoder refuses. | `Spec.pem_vectors` |
 
-Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any `eol` in place of each LF: `Spec.StrictPem` gives what it accepts. A function that did nothing, or that accepted too much, would fail at least one of them.
+Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any `eol` in place of each LF: `Spec.StrictPem` gives what it accepts. `Luhn.valid` and `Iban.valid` are decided exactly, `Iban.checkDigits` is given exactly, and `Luhn.checkDigit` is given exactly for a payload of digits. A function that did nothing, or that accepted too much, would fail at least one of them.
 
 ## Oracle
 
