@@ -11,10 +11,6 @@
   vectors of RFC 4648, section 10, are theorems in `Spec.lean`.
 -/
 
-import Codec
-
-open Codec
-
 /-! ## Shared -/
 
 /-- The bytes of an ASCII string, for test vectors. -/
