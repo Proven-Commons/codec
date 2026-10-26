@@ -13,5 +13,5 @@ Written by `tests/cross_check.py`, once, by hand. It is not part of the verified
 
 - Go: `encoding/pem`, go version go1.24.7 linux/amd64
 - Encoding requests: 51015. The same text from both: 43123. Go writes a label this encoder refuses: 7892. Other differences: 0.
-- Decoding requests: 86226. The same answer from both, with nothing left over in Go: 51362. Go reads text this decoder refuses: 4794. This decoder accepts text with a CR alone as a line end, as RFC 7468's `eol` allows, and Go does not, since it ends lines at LF only: 29531. This decoder reads empty data under a label with a `:`, and Go takes the END line for a header: 539. Other differences, where this decoder accepts text that Go reads differently or not at all: 0.
+- Decoding requests: 86229. The same answer from both, with nothing left over in Go: 51361. Go reads text this decoder refuses: 4798. This decoder accepts text with a CR alone as a line end, as RFC 7468's `eol` allows, and Go does not, since it ends lines at LF only: 29531. This decoder reads empty data under a label with a `:`, and Go takes the END line for a header: 539. Other differences, where this decoder accepts text that Go reads differently or not at all: 0.
 

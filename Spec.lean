@@ -214,7 +214,9 @@ theorem Spec.pem_decode_encode (label : List Char) (data : List UInt8) (text : L
 
 /-- RFC 7468, Figure 15, written exactly as the RFC prints it and read
     back with CR LF line ends; empty data and an empty label; labels the
-    `label` rule refuses; and texts the decoder refuses. -/
+    `label` rule refuses; and texts the decoder refuses, among them the
+    standard form's text for empty data, with one empty line, and a file
+    of two messages. -/
 theorem Spec.pem_vectors :
     Pem.encode "PUBLIC KEY".toList Spec.figure15 = some
       ("-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\n".toList ++
@@ -238,9 +240,15 @@ theorem Spec.pem_vectors :
     Pem.decode "-----BEGIN X-----\nAA== \n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X----- \nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\n\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\n\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\r\n\r\n-----END X-----\r\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\nProc-Type: 4,ENCRYPTED\nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "text\n-----BEGIN X-----\nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----\n\n".toList = none ∧
+    Pem.decode ("-----BEGIN X-----\nAA==\n-----END X-----\n".toList ++
+      "-----BEGIN X-----\nAA==\n-----END X-----\n".toList) = none ∧
+    Pem.decode ("-----BEGIN X-----\r\nAA==\r\n-----END X-----\r\n".toList ++
+      "-----BEGIN X-----\r\nAA==\r\n-----END X-----\r\n".toList) = none ∧
     Pem.decode "-----BEGIN X-----\nAB==\n-----END X-----\n".toList = none ∧
     Pem.decode ("-----BEGIN X-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAA\n".toList ++
       "-----END X-----\n".toList) = none := sorry

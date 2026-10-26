@@ -258,6 +258,11 @@ PEM_LABELS = ["CERTIFICATE", "X509 CRL", "CERTIFICATE REQUEST", "PKCS7", "CMS", 
 BAD_PEM_LABELS = ["A--B", "A  B", "A -B", " A", "A ", "-A", "A-", "-", " ", "\xe9", "\x7f", "A\tB",
                   "A\nB", "A-----", "\u0130"]
 PEM_POOL = "\r\n -=+/AZaz09-!~,:\t\xe9"
+# Two texts the page says are refused, each also with CR LF line ends:
+# the standard form's text for empty data (Figure 1), which has one empty
+# line, and a file of two messages.
+PEM_REFUSED = ["-----BEGIN X-----\n\n-----END X-----\n",
+               "-----BEGIN X-----\nAA==\n-----END X-----\n" * 2]
 
 
 def oracle_pem_encode(label, data):
@@ -434,6 +439,9 @@ def fixed_cases():
                           pem_encoded(label, data), None, False))
             text = oracle_pem_encode(label, data) or f"-----BEGIN {label}-----\n-----END {label}-----\n"
             items.append(("pemdec", f"pemdec {text_nums(text)}", pem_decoded(text), None, False))
+    for text in PEM_REFUSED:
+        for ends in (text, text.replace("\n", "\r\n")):
+            items.append(("pemdec", f"pemdec {text_nums(ends)}", "none", None, False))
     for c in range(128):
         text = chr(c)
         items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)), None, False))
