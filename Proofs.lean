@@ -7,3 +7,6 @@ import Proofs.Base64
 import Proofs.Base32
 import Proofs.Crc32
 import Proofs.Percent
+import Proofs.Pem
+import Proofs.Luhn
+import Proofs.Iban

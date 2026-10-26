@@ -177,3 +177,144 @@ theorem Spec.percent_vectors :
     Percent.decode "%zz".toList = none ∧
     Percent.decode "%%41".toList = none ∧
     Percent.decode "café".toList = none := sorry
+
+/-! ## PEM
+
+RFC 7468, the strict form of the textual encoding (Figure 3): a BEGIN
+line with a label, the base 64 of the data in lines of 64 characters,
+and an END line with the same label. -/
+
+/-- The encoder writes the strict form, each line ending in LF, and for
+    empty data the BEGIN and END lines alone; it fails on a label the
+    `label` rule does not allow. -/
+theorem Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List Char) :
+    Pem.encode label data = some text ↔ Spec.Label label ∧ text = Spec.pemText label data :=
+  sorry
+
+/-- The decoder reads exactly the messages in the strict form, and for
+    empty data the BEGIN and END lines alone, with any `eol` at the end
+    of each line, and gives their label and data. So
+    it refuses a different label on the END line, blanks, headers, text
+    before or after the message, lines of another length, and base 64
+    that is not exactly the encoding of the data. -/
+theorem Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
+    Pem.decode text = some (label, data) ↔ Spec.StrictPem text label data := sorry
+
+/-- Decoding what the encoder wrote gives the label and the data back. -/
+theorem Spec.pem_decode_encode (label : List Char) (data : List UInt8) (text : List Char) :
+    Pem.encode label data = some text → Pem.decode text = some (label, data) := sorry
+
+/-- RFC 7468, Figure 15, written exactly as the RFC prints it and read
+    back with CR LF line ends; empty data and an empty label; labels the
+    `label` rule refuses; and texts the decoder refuses. -/
+theorem Spec.pem_vectors :
+    Pem.encode "PUBLIC KEY".toList Spec.figure15 = some
+      ("-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\n".toList ++
+       "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\n-----END PUBLIC KEY-----\n".toList) ∧
+    Pem.decode ("-----BEGIN PUBLIC KEY-----\r\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\r\n".toList ++
+       "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\r\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\r\n-----END PUBLIC KEY-----\r\n".toList) =
+      some ("PUBLIC KEY".toList, Spec.figure15) ∧
+    Pem.encode "X".toList [] = some "-----BEGIN X-----\n-----END X-----\n".toList ∧
+    Pem.decode "-----BEGIN X-----\n-----END X-----\n".toList = some ("X".toList, []) ∧
+    Pem.decode "-----BEGIN -----\rAA==\r-----END -----\r".toList = some ([], [0]) ∧
+    Pem.encode "RSA PRIVATE KEY".toList [0] =
+      some "-----BEGIN RSA PRIVATE KEY-----\nAA==\n-----END RSA PRIVATE KEY-----\n".toList ∧
+    Pem.encode "A,B".toList [] = some "-----BEGIN A,B-----\n-----END A,B-----\n".toList ∧
+    Pem.encode "A--B".toList [] = none ∧
+    Pem.encode "A  B".toList [] = none ∧
+    Pem.encode " A".toList [] = none ∧
+    Pem.encode "A-".toList [] = none ∧
+    Pem.encode "\u00c9".toList [] = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END Y-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA== \n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X----- \nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\n\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nProc-Type: 4,ENCRYPTED\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "text\n-----BEGIN X-----\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----\n\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\nAB==\n-----END X-----\n".toList = none ∧
+    Pem.decode ("-----BEGIN X-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAA\n".toList ++
+      "-----END X-----\n".toList) = none := sorry
+
+/-! ## Luhn -/
+
+/-- `valid` decides the Luhn rule: every digit is 0 to 9, and the Luhn
+    sum is a multiple of 10. -/
+theorem Spec.luhn_valid_iff (ds : List Nat) :
+    Luhn.valid ds = true ↔ (∀ d ∈ ds, d ≤ 9) ∧ Spec.luhnSum ds % 10 = 0 := sorry
+
+/-- The check digit is a digit, and it is the one digit that makes the
+    payload with it valid. -/
+theorem Spec.luhn_checkDigit (ds : List Nat) (h : ∀ d ∈ ds, d ≤ 9) :
+    Luhn.checkDigit ds ≤ 9 ∧
+      ∀ c, c ≤ 9 → (Luhn.valid (ds ++ [c]) = true ↔ c = Luhn.checkDigit ds) := sorry
+
+/-- A single digit typed wrong is caught. -/
+theorem Spec.luhn_single_error (l r : List Nat) (a b : Nat)
+    (h : Luhn.valid (l ++ a :: r) = true) (hb : b ≤ 9) (hab : a ≠ b) :
+    Luhn.valid (l ++ b :: r) = false := sorry
+
+/-- Two adjacent digits typed in the wrong order are caught, unless they
+    are 0 and 9. -/
+theorem Spec.luhn_adjacent_swap (l r : List Nat) (a b : Nat)
+    (h : Luhn.valid (l ++ a :: b :: r) = true) (hab : a ≠ b)
+    (h09 : ¬ (a = 0 ∧ b = 9)) (h90 : ¬ (a = 9 ∧ b = 0)) :
+    Luhn.valid (l ++ b :: a :: r) = false := sorry
+
+/-- The blind spot: swapping an adjacent 0 and 9 is never caught. -/
+theorem Spec.luhn_swap_09 (l r : List Nat) :
+    Luhn.valid (l ++ 0 :: 9 :: r) = Luhn.valid (l ++ 9 :: 0 :: r) := sorry
+
+/-- The common worked example, 79927398713, and a test card number. -/
+theorem Spec.luhn_vectors :
+    Luhn.valid [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = true ∧
+    Luhn.checkDigit [7, 9, 9, 2, 7, 3, 9, 8, 7, 1] = 3 ∧
+    Luhn.valid [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 4] = false ∧
+    Luhn.valid [4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] = true ∧
+    Luhn.valid [1, 0] = false := sorry
+
+/-! ## IBAN -/
+
+/-- `valid` decides the IBAN check: the shape, and the number mod 97. -/
+theorem Spec.iban_valid_iff (s : List Char) : Iban.valid s = true ↔ Spec.IbanValid s := sorry
+
+/-- `checkDigits` gives exactly the two digits from 02 to 98 that make
+    the IBAN pass the check, for a country code of two characters; there
+    is never more than one. -/
+theorem Spec.iban_checkDigits_iff (country bban ck : List Char) :
+    Iban.checkDigits country bban = some ck ↔
+      country.length = 2 ∧ ck.length = 2 ∧ (∀ c ∈ ck, Spec.ibanDigit c) ∧
+        2 ≤ Spec.ibanNumber ck ∧ Spec.ibanNumber ck ≤ 98 ∧
+          Spec.IbanValid (country ++ ck ++ bban) := sorry
+
+/-- One digit typed for another, or one letter for another, is caught. -/
+theorem Spec.iban_substitution (l r : List Char) (a b : Char)
+    (h : Iban.valid (l ++ a :: r) = true) (hab : a ≠ b)
+    (hkind : (Spec.ibanDigit a ∧ Spec.ibanDigit b) ∨ (Spec.ibanLetter a ∧ Spec.ibanLetter b)) :
+    Iban.valid (l ++ b :: r) = false := sorry
+
+/-- Two adjacent digits, or two adjacent letters, typed in the wrong
+    order are caught. -/
+theorem Spec.iban_adjacent_swap (l r : List Char) (a b : Char)
+    (h : Iban.valid (l ++ a :: b :: r) = true) (hab : a ≠ b)
+    (hkind : (Spec.ibanDigit a ∧ Spec.ibanDigit b) ∨ (Spec.ibanLetter a ∧ Spec.ibanLetter b)) :
+    Iban.valid (l ++ b :: a :: r) = false := sorry
+
+/-- Example IBANs: the United Kingdom's from the SWIFT IBAN Registry,
+    and Germany's, France's and Norway's; their check digits; one digit
+    wrong. And the blind spot: a letter and a digit swapped, `4B1` for
+    `41B`, gives another IBAN that passes, since B is 11. -/
+theorem Spec.iban_vectors :
+    Iban.valid "GB29NWBK60161331926819".toList = true ∧
+    Iban.valid "DE89370400440532013000".toList = true ∧
+    Iban.valid "FR1420041010050500013M02606".toList = true ∧
+    Iban.valid "NO9386011117947".toList = true ∧
+    Iban.checkDigits "GB".toList "NWBK60161331926819".toList = some "29".toList ∧
+    Iban.checkDigits "DE".toList "370400440532013000".toList = some "89".toList ∧
+    Iban.checkDigits "FR".toList "20041010050500013M02606".toList = some "14".toList ∧
+    Iban.checkDigits "NO".toList "86011117947".toList = some "93".toList ∧
+    Iban.valid "GB29NWBK60161331926818".toList = false ∧
+    Iban.valid "gb29NWBK60161331926819".toList = false ∧
+    Iban.valid "FR2130006000010001234B15697".toList = true ∧
+    Iban.valid "FR21300060000100012341B5697".toList = true := sorry
