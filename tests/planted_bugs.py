@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 """Plant each bug below in a copy of the code, and check the tests catch it.
 
-A planted bug is a small change to the code under proof, of a kind a
-person could make by mistake. For each one, this script copies the
-project into a temporary directory, makes the change there, builds the
-command-line tool, and runs the differential tests on a given number of
-inputs. The tests catch the bug when they report failures. The proofs
-would catch every one of these bugs too, since the code no longer meets
-its statements; this script checks the tests on their own, so it builds
-only the tool, not the proofs.
+A planted bug is a small change to the command-line tool (Main.lean)
+or to the code under proof in Codec/, of a kind a person could make by
+mistake. The script copies the project once into a temporary
+directory. For each bug it makes the change there, builds the tool,
+runs the differential tests on a given number of inputs, and puts the
+file back. The tests catch the bug when they report failures.
+
+A change to the code under proof that alters an answer its statements
+fix also breaks the proofs, since the code no longer meets them. No
+proof covers Main.lean, so only the tests can catch a change there.
+This script checks the tests on their own, so it builds only the tool,
+not the proofs.
 
 The project itself is never changed. The script writes the results to
-tests/PLANTED-BUGS.md, and exits with 1 if a bug is not caught and is
-not marked as equivalent. An equivalent change gives the same answer on
+tests/PLANTED-BUGS.md. It exits with an error if a bug is not caught
+and is not marked as equivalent, if a bug marked as equivalent is
+caught, or if a test run gives no failure count, or one that does not
+match its exit status. An equivalent change gives the same answer on
 every input, so no test can catch it; its entry says why.
 
 Usage: python3 tests/planted_bugs.py [--count N]
@@ -427,7 +433,7 @@ BUGS = [
     ('n45_stderr_note', "Main.lean",
      '    stdout.putStrLn ((request line).getD "error")',
      '    match request line with\n    | some s => stdout.putStrLn s\n    | none => do stdout.putStrLn "error"; IO.eprintln s!"malformed: {line}"',
-     'It only adds a note on stderr. The tool prints the same on stdout, and the tests and SPEC.md cover stdout only.'),
+     'It only adds a note on stderr. The tests compare stdout and the exit status, and neither they nor SPEC.md say anything about stderr.'),
     ('n46_exit_status_1', "Main.lean",
      '    stdout.putStrLn ((request line).getD "error")',
      '    stdout.putStrLn ((request line).getD "error")\n  IO.Process.exit 1',
@@ -513,6 +519,16 @@ BUGS = [
 ]
 
 
+# Said under the table.
+NOTES = [
+    "The count for `m35_no_eof_check`, a tool that never stops printing, depends on how much",
+    "it prints before the tests stop it, so it differs from run to run.",
+    "",
+    "No bug here changes the Base32 code, `Codec/Base32.lean`, and no planted bugs are",
+    "recorded for it.",
+]
+
+
 def failures(out):
     m = re.search(r"(\d+) failures?", out)
     return int(m.group(1)) if m else None
@@ -537,6 +553,9 @@ def run(count):
                                   cwd=work, capture_output=True, text=True)
             path.write_text(original)
             n = failures(test.stdout + test.stderr)
+            if n is None or (n == 0) != (test.returncode == 0):
+                sys.exit(f"{name}: the tests gave no failure count, or one that does not match "
+                         f"their exit status {test.returncode}\n{(test.stdout + test.stderr)[-2000:]}")
             rows.append((name, rel, old, new, equivalent, n))
             print(f"{name}: {n} failures", flush=True)
     return rows
@@ -556,7 +575,7 @@ def write(rows, count):
     for name, rel, _, _, equivalent, n in rows:
         cell = str(n) if n else ("0, equivalent: " + equivalent if equivalent else "0, NOT CAUGHT")
         lines.append(f"| {name} | `{rel}` | {cell} |")
-    lines += ["", "## The changes", ""]
+    lines += [""] + NOTES + ["", "## The changes", ""]
     for name, rel, old, new, _, _ in rows:
         lines += [f"**{name}** in `{rel}`:", "", "```", "- " + old.replace("\n", "\n- "),
                   "+ " + new.replace("\n", "\n+ "), "```", ""]
@@ -570,10 +589,12 @@ def main():
     rows = run(args.count)
     write(rows, args.count)
     missed = [r[0] for r in rows if not r[5] and not r[4]]
+    wrong = [r[0] for r in rows if r[5] and r[4]]
     caught = sum(1 for r in rows if r[5])
     print(f"{caught} of {len(rows)} planted bugs caught; results in tests/PLANTED-BUGS.md")
-    if missed:
-        sys.exit("not caught: " + ", ".join(missed))
+    if missed or wrong:
+        sys.exit("; ".join(([f"not caught: {', '.join(missed)}"] if missed else []) +
+                           ([f"marked as equivalent but caught: {', '.join(wrong)}"] if wrong else [])))
 
 
 if __name__ == "__main__":
