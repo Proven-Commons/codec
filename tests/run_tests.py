@@ -42,8 +42,9 @@ It builds the executable first, writes tests/TEST-RESULTS.md, and exits
 non-zero if any input disagrees. It needs Python 3.11 or later.
 
 The cases are made from the seed as they are sent, and made again from
-the seed to check the answers as they come back. No case is kept, so
-memory stays small however many inputs there are.
+the seed to check the answers as they come back. No case is kept, and
+each answer is dropped once it is checked, so for a tool that ends its
+answers in LF, memory stays small however many inputs there are.
 """
 
 import argparse
@@ -785,11 +786,11 @@ def run_tool(chunks, answer, timeout=TIMEOUT):
     line the tool prints to `answer` as it comes. Return a note on how
     the run failed, or None. Lines end in LF only; the output is read as
     bytes, so a CR left in a line fails the comparison. No right answer
-    is longer than one and a half times its request plus 16 bytes
-    (`pctenc` writes three characters for a byte the request can give in
-    two, such as "0,"), so a tool that writes more than twice what it
-    was sent and 64 bytes a line is stopped, not read until memory runs
-    out."""
+    is longer than three times its request plus 128 bytes (`pemenc`
+    writes the label twice and adds the BEGIN and END lines, all as
+    character codes), so a tool that writes more than three times what
+    it was sent and 128 bytes a line is stopped, not read until memory
+    runs out."""
     try:
         proc = subprocess.Popen([str(EXE)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
@@ -827,7 +828,7 @@ def run_tool(chunks, answer, timeout=TIMEOUT):
         try:
             while chunk := proc.stdout.read1(1 << 16):
                 read += len(chunk)
-                limit = 2 * sent["bytes"] + 64 * (sent["lines"] + 1)
+                limit = 3 * sent["bytes"] + 128 * (sent["lines"] + 1)
                 start = 0
                 while (end := chunk.find(b"\n", start)) >= 0:
                     line += chunk[start:end]
