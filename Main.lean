@@ -40,9 +40,10 @@
   with no numbers after the space, the input is empty. `pemenc` and
   `ibancheck` are the exceptions: each needs its one space and one `;`. A malformed
   request prints `error`: any other line, an unknown operation, a number
-  that is not plain decimal digits, a byte above 255, or a character
-  code that is not a Unicode scalar value. A line may end in LF or
-  CR LF; nothing else around a request is ignored.
+  that is not plain decimal digits, a number with more than seven digits
+  after its leading zeros, a byte above 255, or a character code that is
+  not a Unicode scalar value. A line may end in LF or CR LF; nothing
+  else around a request is ignored.
 
   Every operation calls the proved function in `Codec/` directly. The
   parsing and printing here are covered by the tests, not by a proof.
@@ -54,10 +55,12 @@ open Codec
 
 /-- A number in plain decimal digits. The length cap counts only the
     digits after any leading zeros. If more than seven are left, the
-    number is larger than any byte or character code. It is then refused
-    before it is converted, since converting it takes time quadratic in
-    its length. Leading zeros take only linear time, so 1,000 zeros and
-    then 1 is converted, and reads as 1. -/
+    number is refused before it is converted, since converting it takes
+    time quadratic in its length. Every operation then answers `error`,
+    `luhn` too. Such a number is larger than any byte or character code,
+    but `luhn` takes numbers that are neither: `luhn 12345678` answers
+    `error`, where `luhn 1234567` answers `false`. Leading zeros take only
+    linear time, so 1,000 zeros and then 1 is converted, and reads as 1. -/
 def number (t : String) : Option Nat :=
   let ds := t.toList
   if ds.isEmpty || !ds.all Char.isDigit || (ds.dropWhile (· = '0')).length > 7 then none

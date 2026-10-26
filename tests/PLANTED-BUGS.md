@@ -9,16 +9,16 @@ against the changed tool. A bug is caught when they report failures.
 | m01_bytes_mod_512 | `Main.lean` | 9 |
 | m02_underscores | `Main.lean` | 1 |
 | m03_invalid_cp_to_fffd | `Main.lean` | 12 |
-| m04_drop_last_number | `Main.lean` | 20216 |
+| m04_drop_last_number | `Main.lean` | 20221 |
 | m05_trailing_comma | `Main.lean` | 1 |
 | m06_case_insensitive_op | `Main.lean` | 2 |
 | m07_tab_separator | `Main.lean` | 1 |
-| m08_uint64_parser_nocap | `Main.lean` | 6 |
+| m08_uint64_parser_nocap | `Main.lean` | 11 |
 | m08b_uint64_parser_cap | `Main.lean` | 0, equivalent: The cap leaves at most seven digits after the leading zeros. So the value is below 10,000,000, and a UInt64 cannot overflow. |
 | m09_cp_mod_256 | `Main.lean` | 561 |
 | m10_cp_mod_65536 | `Main.lean` | 262 |
 | m11a_cp_via_uint32_cap | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the trip through UInt32 changes nothing. |
-| m11b_cp_via_uint32_nocap | `Main.lean` | 6 |
+| m11b_cp_via_uint32_nocap | `Main.lean` | 11 |
 | m12_hexenc_unchecked | `Main.lean` | 3 |
 | m13_b64enc_unchecked | `Main.lean` | 1 |
 | m14_crc_unchecked | `Main.lean` | 1 |
@@ -32,13 +32,13 @@ against the changed tool. A bug is caught when they report failures.
 | m20c_trim_both_ends | `Main.lean` | 8 |
 | m21_chomp_strips_mid_cr | `Main.lean` | 4 |
 | m22_cap_counts_leading_zeros | `Main.lean` | 3 |
-| m22b_cap_32_chars_with_zeros | `Main.lean` | 1 |
+| m22b_cap_32_chars_with_zeros | `Main.lean` | 5 |
 | m23_cap_6 | `Main.lean` | 120 |
-| m24_no_cap | `Main.lean` | 0, equivalent: Without the cap, a long number is converted, which only takes longer. It is above 255 and above 0x10FFFF, so the answer is still `error`. |
+| m24_no_cap | `Main.lean` | 5 |
 | m25_accept_surrogates | `Main.lean` | 9 |
 | m26_accept_0x110000 | `Main.lean` | 2 |
 | m27_accept_trailing_space | `Main.lean` | 3 |
-| m28r_reject_empty_arg | `Main.lean` | 1320 |
+| m28r_reject_empty_arg | `Main.lean` | 1315 |
 | m29_swap_hexenc_b64enc | `Main.lean` | 1522 |
 | m29b_swap_frame_unframe | `Main.lean` | 2550 |
 | m30_hexenc_uppercase | `Main.lean` | 686 |
@@ -47,7 +47,7 @@ against the changed tool. A bug is caught when they report failures.
 | m33_cr_only_output | `Main.lean` | 30007 |
 | m34_reject_nul_code_point | `Main.lean` | 104 |
 | m34b_nul_as_invalid_sentinel | `Main.lean` | 104 |
-| m35_no_eof_check | `Main.lean` | 3599194 |
+| m35_no_eof_check | `Main.lean` | 3597826 |
 | m36_no_arg_form_refused | `Main.lean` | 1 |
 | m37_chars_below_256_only | `Main.lean` | 784 |
 | m38_strip_cr_before_lf | `Main.lean` | 3 |
@@ -57,7 +57,7 @@ against the changed tool. A bug is caught when they report failures.
 | m42_unchecked_chars_hexdec | `Main.lean` | 4 |
 | m43_cr_as_separator | `Main.lean` | 1 |
 | m44_parse_after_zero_strip | `Main.lean` | 4073 |
-| m45_toInt_nonneg | `Main.lean` | 3 |
+| m45_toInt_nonneg | `Main.lean` | 8 |
 | m45b_toInt_nonneg_cap | `Main.lean` | 3 |
 | m45c_minus_sign_then_nonneg | `Main.lean` | 2 |
 | n01_chomp_cr_at_eof | `Main.lean` | 1 |
@@ -66,7 +66,7 @@ against the changed tool. A bug is caught when they report failures.
 | n04_chomp_nel_before_lf | `Main.lean` | 1 |
 | n05_chomp_ls_ps_before_lf | `Main.lean` | 2 |
 | n06_unicode_eol_at_eof | `Main.lean` | 1 |
-| n07_ls_splits_requests | `Main.lean` | 24012 |
+| n07_ls_splits_requests | `Main.lean` | 24009 |
 | n08_chomp_ff_fs_gs_rs_before_lf | `Main.lean` | 2 |
 | n09_chomp_filter_all_lf | `Main.lean` | 0, equivalent: A line from getLine holds at most one LF, at its end. So removing every LF removes just that one. |
 | n10_leading_bom_dropped | `Main.lean` | 2 |
@@ -82,9 +82,9 @@ against the changed tool. A bug is caught when they report failures.
 | n20_nfkc_digits_fullwidth_sub | `Main.lean` | 2 |
 | n21_unicode_nd_digits | `Main.lean` | 2 |
 | n22_no_digit_check_toNat | `Main.lean` | 1 |
-| n23_cap_8 | `Main.lean` | 0, equivalent: A number with eight digits after its leading zeros is at least 10,000,000. That is above 255 and above 0x10FFFF, so the answer is still `error`. |
-| n24_cap_ignores_all_zeros | `Main.lean` | 0, equivalent: A number this lets past the cap still has eight or more digits after its leading zeros. So it is at least 10,000,000, and the range checks still refuse it. |
-| n25_cap_takewhile_zeros | `Main.lean` | 2 |
+| n23_cap_8 | `Main.lean` | 4 |
+| n24_cap_ignores_all_zeros | `Main.lean` | 4 |
+| n25_cap_takewhile_zeros | `Main.lean` | 7 |
 | n26_zero_refused | `Main.lean` | 4073 |
 | n27_bytes_le_256 | `Main.lean` | 7 |
 | n28_bytes_via_uint16 | `Main.lean` | 1 |
@@ -102,11 +102,11 @@ against the changed tool. A bug is caught when they report failures.
 | n40_no_lf_on_last_answer | `Main.lean` | 7 |
 | n41_bom_before_output | `Main.lean` | 7 |
 | n42_trailing_space_every_answer | `Main.lean` | 30006 |
-| n43_trailing_space_on_error | `Main.lean` | 94 |
+| n43_trailing_space_on_error | `Main.lean` | 99 |
 | n44_blank_line_after_last | `Main.lean` | 7 |
 | n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr. The tests compare stdout and the exit status, and neither they nor SPEC.md say anything about stderr. |
 | n46_exit_status_1 | `Main.lean` | 7 |
-| n47_bom_on_error_lines | `Main.lean` | 94 |
+| n47_bom_on_error_lines | `Main.lean` | 99 |
 | n48_minus_on_first_number | `Main.lean` | 1 |
 | n49_bom_on_first_line_only | `Main.lean` | 1 |
 | p01_lowercase_digits | `Codec/Percent.lean` | 805 |

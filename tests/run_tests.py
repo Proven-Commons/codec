@@ -187,6 +187,14 @@ MALFORMED = [
     (f"b32dec {wrapped('MZXQ====', 64)}", "code points that wrap at 2^64 to base 32"),
     ("hexenc 1" + "0" * 100 + "1", "a number with a hundred digits"),
     ("crc 1,1" + "0" * 100 + "1", "a number with a hundred digits"),
+    # `luhn` takes its numbers with no range check, so only the length cap
+    # refuses these: a number with more than seven digits after its
+    # leading zeros.
+    ("luhn 12345678", "a Luhn number of eight digits"),
+    ("luhn 10000000", "a Luhn number of eight digits, seven of them zeros"),
+    ("luhn 12345670", "a Luhn number of eight digits, only seven of them not zero"),
+    ("luhn 7,0012345670", "the same after leading zeros, as a later number"),
+    ("luhn 1" + "0" * 100 + "1", "a Luhn number with a hundred digits"),
 ]
 
 # Valid characters at the edges of the ranges, or whose low bits are
@@ -382,11 +390,23 @@ def luhn_sum(ds):
     return total
 
 
+# The tool refuses a number with more than seven digits after its
+# leading zeros, that is one of 10,000,000 or more, in every operation.
+# No byte or character code is that large, so the other oracles never
+# meet one. `luhn` takes its numbers with no range check, so its oracle
+# refuses them here.
+TOO_LONG = 10 ** 7
+
+
 def oracle_luhn(ds):
+    if any(d >= TOO_LONG for d in ds):
+        return "error"
     return str(all(d <= 9 for d in ds) and luhn_sum(ds) % 10 == 0).lower()
 
 
 def oracle_luhn_check(ds):
+    if any(d > 9 for d in ds):
+        return "error"
     return str((10 - luhn_sum(ds + [0]) % 10) % 10)
 
 
