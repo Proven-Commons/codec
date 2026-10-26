@@ -1,6 +1,8 @@
 /-
   The definitions the specification uses, written from the standards,
-  independently of the code in `Codec/`. Part of the approved
+  independently of the code in `Codec/`, with one exception: the PEM
+  definitions take their base 64 from `Base64.encode`, which the base 64
+  statements in `Spec.lean` pin down exactly. Part of the approved
   specification, with `Spec.lean`.
 
   Both the challenge file and the proofs import this file, so each
@@ -178,3 +180,183 @@ inductive Spec.PctReads : List Char → List UInt8 → Prop where
   | char {c : Char} {rest : List Char} {bs : List UInt8} :
       c ≠ '%' → c.toNat < 0x80 →
       Spec.PctReads rest bs → Spec.PctReads (c :: rest) (c.toNat.toUInt8 :: bs)
+
+/-! ## PEM
+
+RFC 7468, the textual encoding of PKIX, PKCS, and CMS structures,
+section 3, the strict form (Figure 3) and the rules it uses (Figure 1):
+
+```
+stricttextualmsg = preeb eol
+                   strictbase64text
+                   posteb eol
+
+strictbase64finl = *15(4base64char) (4base64char / 3base64char
+                     base64pad / 2base64char 2base64pad) eol
+base64fullline   = 64base64char eol
+strictbase64text = *base64fullline strictbase64finl
+
+preeb      = "-----BEGIN " label "-----"
+posteb     = "-----END " label "-----"
+labelchar  = %x21-2C / %x2E-7E    ; any printable character,
+                                  ; except hyphen-minus
+label      = [ labelchar *( ["-" / SP] labelchar ) ]       ; empty ok
+eol        = CRLF / CR / LF
+```
+
+Section 2: "Generators MUST put the same label on the "-----END " line
+(post-encapsulation boundary) as the corresponding "-----BEGIN " line."
+"Generators MUST wrap the base64-encoded lines so that each line consists
+of exactly 64 characters except for the final line".
+
+The base 64 is RFC 4648, section 4, as `Base64.encode` writes it; its
+statements pin it down. Two points depart from the strict form. It has
+no text for empty data, since `strictbase64finl` needs four characters:
+here empty data has no line of base 64, so its text is the BEGIN and END
+lines alone. With LF line ends only the lax form (Figure 2) allows that
+text, and the standard form's text for empty data (Figure 1), with one
+empty line, is refused. And the strict form allows a final group whose
+unused bits are not zero, which strict base 64 refuses: here the base 64
+is exactly `Base64.encode` of the data. -/
+
+/-- `labelchar`: printable US-ASCII, `!` to `~`, except `-`. -/
+def Spec.labelChar (c : Char) : Prop :=
+  (0x21 ≤ c.toNat ∧ c.toNat ≤ 0x2C) ∨ (0x2E ≤ c.toNat ∧ c.toNat ≤ 0x7E)
+
+/-- `*( ["-" / SP] labelchar )`: label characters, each of which may
+    follow one `-` or space. -/
+inductive Spec.LabelTail : List Char → Prop where
+  | nil : Spec.LabelTail []
+  | char {c : Char} {rest : List Char} :
+      Spec.labelChar c → Spec.LabelTail rest → Spec.LabelTail (c :: rest)
+  | sep {s c : Char} {rest : List Char} :
+      (s = '-' ∨ s = ' ') → Spec.labelChar c → Spec.LabelTail rest →
+      Spec.LabelTail (s :: c :: rest)
+
+/-- `label = [ labelchar *( ["-" / SP] labelchar ) ]`. -/
+def Spec.Label (l : List Char) : Prop :=
+  l = [] ∨ ∃ c rest, l = c :: rest ∧ Spec.labelChar c ∧ Spec.LabelTail rest
+
+/-- `eol = CRLF / CR / LF`. -/
+def Spec.Eol (e : List Char) : Prop :=
+  e = ['\r', '\n'] ∨ e = ['\r'] ∨ e = ['\n']
+
+/-- The text `text` is the lines `ls`, each followed by an `eol`. No
+    line holds a CR or an LF. -/
+inductive Spec.LinesEol : List Char → List (List Char) → Prop where
+  | nil : Spec.LinesEol [] []
+  | cons {l e rest : List Char} {ls : List (List Char)} :
+      '\r' ∉ l → '\n' ∉ l → Spec.Eol e → Spec.LinesEol rest ls →
+      Spec.LinesEol (l ++ e ++ rest) (l :: ls)
+
+/-- `*base64fullline strictbase64finl`, without the line ends: the base
+    64 text cut into lines of 64 characters, the last one at most 64. -/
+def Spec.lines64 (s : List Char) : List (List Char) :=
+  (List.range ((s.length + 63) / 64)).map fun i => (s.drop (64 * i)).take 64
+
+/-- The lines of the message for `label` and `data`, without their line
+    ends: `preeb`, the base 64 of the data, `posteb`. The END line has
+    the same label as the BEGIN line. -/
+def Spec.pemLines (label : List Char) (data : List UInt8) : List (List Char) :=
+  ["-----BEGIN ".toList ++ label ++ "-----".toList] ++ Spec.lines64 (Base64.encode data) ++
+    ["-----END ".toList ++ label ++ "-----".toList]
+
+/-- What a generator writes: each line, then LF. -/
+def Spec.pemText (label : List Char) (data : List UInt8) : List Char :=
+  ((Spec.pemLines label data).map (· ++ ['\n'])).flatten
+
+/-- `text` is a message in the strict form, for this label and data:
+    the label is a `label`, and the text is the message's lines, each
+    followed by any `eol`. -/
+def Spec.StrictPem (text label : List Char) (data : List UInt8) : Prop :=
+  Spec.Label label ∧ Spec.LinesEol text (Spec.pemLines label data)
+
+-- 48 bytes are one full line of 64 characters; 49 bytes need a second.
+example : (Spec.lines64 (List.replicate 64 'A')).map List.length = [64] := by decide
+example : (Spec.lines64 (List.replicate 68 'A')).map List.length = [64, 4] := by decide
+example : Spec.lines64 [] = [] := by decide
+
+/-- The data of RFC 7468, Figure 15 (a subject public key info), as the
+    base 64 there spells it. -/
+def Spec.figure15 : List UInt8 := [
+    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02,
+    0x01, 0x06, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04,
+    0x9F, 0x52, 0xE5, 0xC0, 0xB3, 0x7F, 0x28, 0x16, 0x10, 0x45, 0x51, 0xFA,
+    0x1D, 0xF2, 0x0C, 0x4F, 0x37, 0xC4, 0xA8, 0x93, 0x95, 0xCE, 0xD2, 0xDE,
+    0x90, 0xB7, 0x21, 0xA7, 0x68, 0x62, 0xEF, 0xC7, 0x02, 0x68, 0xC6, 0x3C,
+    0xD4, 0x50, 0x65, 0x62, 0xCF, 0x09, 0xF6, 0x5E, 0xE4, 0xAD, 0xCF, 0x8C,
+    0xE1, 0xA0, 0x5E, 0x08, 0x66, 0x05, 0x8D, 0xB6, 0xBE, 0x86, 0x25, 0xED,
+    0xB4, 0x95, 0x8F, 0x2F, 0xBC, 0x9D, 0x94, 0x4F, 0xB9, 0x50, 0x6E, 0x14,
+    0x36, 0x49, 0xF7, 0x12, 0x8B, 0x3C, 0x12, 0x26, 0x41, 0xCA, 0x2F, 0x43,
+    0x56, 0xCC, 0x9F, 0xCB, 0xD7, 0x9E, 0x8E, 0x1F, 0xBC, 0x01, 0x78, 0x29]
+
+/-! ## Luhn
+
+The check digit of ISO/IEC 7812-1, Annex B, from H. P. Luhn's US patent
+2,950,048: counting from the right, starting with the check digit, every
+second digit is doubled, and when a doubled digit is above 9, 9 is taken
+off it (the same as adding its two digits). The number is valid when the
+sum of the results is a multiple of 10. -/
+
+/-- The share of digit `d` at place `i` from the right, the check digit
+    being place 0: as it is at an even place; doubled at an odd place,
+    less 9 when the double is above 9. -/
+def Spec.luhnShare (i d : Nat) : Nat :=
+  if i % 2 = 1 then (if 2 * d > 9 then 2 * d - 9 else 2 * d) else d
+
+/-- The Luhn sum: the shares of all the digits. -/
+def Spec.luhnSum (ds : List Nat) : Nat :=
+  ((List.range ds.length).map fun i => Spec.luhnShare i (ds.reverse.getD i 0)).sum
+
+-- 79927398713: 3 + 2 + 7 + 7 + 7 + 6 + 2 + 9 + 9 + 9 + 7 (from the
+-- right; 1 8 3 2 9 doubled are 2 16 6 4 18, less 9 above 9: 2 7 6 4 9).
+example : Spec.luhnSum [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = 70 := by decide
+
+/-! ## IBAN
+
+ISO 13616-1, with the check digits of ISO 7064 MOD 97-10. In its
+electronic form an IBAN is a country code of two letters, two check
+digits, and a BBAN of up to 30 letters and digits, letters in upper
+case. To check it, the first four characters move to the end, each
+letter is replaced by its number, A = 10 to Z = 35, and the digits are
+read as one number, which must leave 1 when divided by 97. Check digits
+are computed with 00 in their place, as 98 less that remainder, so they
+run from 02 to 98. The lengths and formats of each country's BBAN, in
+the SWIFT IBAN Registry, are not checked. -/
+
+def Spec.ibanDigit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
+
+def Spec.ibanLetter (c : Char) : Prop := 'A' ≤ c ∧ c ≤ 'Z'
+
+/-- A digit's value, or a letter's: A = 10 to Z = 35. -/
+def Spec.ibanValue (c : Char) : Nat :=
+  if '0' ≤ c ∧ c ≤ '9' then c.toNat - 48 else c.toNat - 55
+
+/-- The decimal digits a character becomes: one for a digit, two for a
+    letter. -/
+def Spec.ibanDigits (c : Char) : List Nat :=
+  if Spec.ibanValue c < 10 then [Spec.ibanValue c] else [Spec.ibanValue c / 10, Spec.ibanValue c % 10]
+
+/-- The number decimal digits write, most significant first. -/
+def Spec.decimal (ds : List Nat) : Nat :=
+  ds.foldl (fun n d => 10 * n + d) 0
+
+/-- The number a string of letters and digits becomes. -/
+def Spec.ibanNumber (cs : List Char) : Nat :=
+  Spec.decimal (cs.flatMap Spec.ibanDigits)
+
+/-- Two letters, two digits, then a BBAN of 1 to 30 letters and digits. -/
+def Spec.IbanShape (s : List Char) : Prop :=
+  ∃ c0 c1 k0 k1 bban, s = c0 :: c1 :: k0 :: k1 :: bban ∧
+    Spec.ibanLetter c0 ∧ Spec.ibanLetter c1 ∧ Spec.ibanDigit k0 ∧ Spec.ibanDigit k1 ∧
+    1 ≤ bban.length ∧ bban.length ≤ 30 ∧ ∀ c ∈ bban, Spec.ibanDigit c ∨ Spec.ibanLetter c
+
+/-- An IBAN that passes the check: the right shape, and the number of
+    the string with its first four characters moved to the end leaves 1
+    when divided by 97. -/
+def Spec.IbanValid (s : List Char) : Prop :=
+  Spec.IbanShape s ∧ Spec.ibanNumber (s.drop 4 ++ s.take 4) % 97 = 1
+
+-- The letters become 10 to 35, and "WEST" becomes 32 14 28 29.
+example : ("AZWEST".toList.flatMap Spec.ibanDigits) =
+    [1, 0, 3, 5, 3, 2, 1, 4, 2, 8, 2, 9] := by decide

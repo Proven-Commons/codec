@@ -20,6 +20,9 @@ code = [
   "Codec.Base64.encode", "Codec.Base64.decode",
   "Codec.Crc32.crc32", "Codec.Crc32.frame", "Codec.Crc32.unframe",
   "Codec.Percent.encode", "Codec.Percent.decode",
+  "Codec.Pem.encode", "Codec.Pem.decode",
+  "Codec.Luhn.valid", "Codec.Luhn.checkDigit",
+  "Codec.Iban.valid", "Codec.Iban.checkDigits",
 ]
 
 # One entry per approval, added in a pull request the reviewer approves.

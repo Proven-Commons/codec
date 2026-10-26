@@ -5,7 +5,11 @@ The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
 `base64.b64encode` and strict `binascii.a2b_base64`, `base64.b32encode`
 and `base64.b32decode`, `zlib.crc32`, and for percent-encoding
 `urllib.parse.quote` with no safe characters and
-`urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape
+`urllib.parse.unquote_to_bytes`; for Luhn and IBAN, the rules written
+here, with Python's own integers for the IBAN number mod 97; for PEM, `ssl.DER_cert_to_PEM_cert`
+for the `CERTIFICATE` label, and for other labels an encoder and a strict
+parser written here from the ABNF of RFC 7468, section 3, with the base
+64 checked by strict `binascii.a2b_base64`. `unquote_to_bytes` passes a bad escape
 through as text, where RFC 3986 has none, so text is first checked
 against what `Spec.PctReads` accepts, as a regular expression, and only
 text that matches is given to it; the rest must be refused. Inputs come from
@@ -45,6 +49,7 @@ import itertools
 import platform
 import random
 import re
+import ssl
 import subprocess
 import sys
 import threading
@@ -152,6 +157,20 @@ MALFORMED = [
     ("hexdec 48,1114112", "beyond Unicode"),
     ("pctenc 37,256", "a byte above 255"),
     ("pctdec 37,55296", "a surrogate, not a character"),
+    ("luhncheck 1,10", "a number above 9"),
+    ("ibancheck", "no arguments"),
+    ("ibancheck 71,66", "no `;`"),
+    ("ibancheck 71;66;1", "two `;`"),
+    ("ibancheck 71,x;66", "a number that is not decimal"),
+    ("ibancheck 71,66;55296", "a surrogate in the BBAN"),
+    ("ibancheck 55296,66;49", "a surrogate in the country code"),
+    ("iban 71,55296", "a surrogate, not a character"),
+    ("pemenc", "no arguments"),
+    ("pemenc 88", "no `;` between the label and the data"),
+    ("pemenc 88;1;2", "two `;`"),
+    ("pemenc 88;256", "a byte above 255"),
+    ("pemenc 55296;1", "a surrogate in the label"),
+    ("pemdec 45,1114112", "beyond Unicode"),
     ("hexdec 48,2097201", "2^21 + 49, which wraps at 21 bits to a digit"),
     ("hexdec 55357,56385", "a UTF-16 surrogate pair, not a character"),
     ("b64dec 90,103,61,99999999999999999999", "beyond Unicode"),
@@ -250,6 +269,224 @@ def oracle_b32decode(text):
         return base64.b32decode(raw)
     except binascii.Error:
         return None
+
+
+# RFC 7468, section 3: `label`, `eol`, and the strict form (Figure 3).
+PEM_LABEL = r"(?:[\x21-\x2c\x2e-\x7e](?:[- ]?[\x21-\x2c\x2e-\x7e])*)?"
+PEM_EOL = r"(?:\r\n|\r|\n)"
+PEM_TEXT = re.compile(r"-----BEGIN (" + PEM_LABEL + r")-----" + PEM_EOL +
+                      r"((?:[A-Za-z0-9+/=]+" + PEM_EOL + r")*)" +
+                      r"-----END \1-----" + PEM_EOL)
+PEM_LABELS = ["CERTIFICATE", "X509 CRL", "CERTIFICATE REQUEST", "PKCS7", "CMS", "PRIVATE KEY",
+              "ENCRYPTED PRIVATE KEY", "ATTRIBUTE CERTIFICATE", "PUBLIC KEY", "", "A", "a-b c",
+              "!~", "X.509 CERTIFICATE", ",", "A,B", "A:B"]
+BAD_PEM_LABELS = ["A--B", "A  B", "A -B", " A", "A ", "-A", "A-", "-", " ", "\xe9", "\x7f", "A\tB",
+                  "A\nB", "A-----", "\u0130"]
+PEM_POOL = "\r\n -=+/AZaz09-!~,:\t\xe9"
+
+
+def oracle_pem_encode(label, data):
+    if not re.fullmatch(PEM_LABEL, label):
+        return None
+    b64 = base64.b64encode(data).decode()
+    lines = [b64[i:i + 64] for i in range(0, len(b64), 64)]
+    return "".join(line + "\n" for line in
+                   [f"-----BEGIN {label}-----"] + lines + [f"-----END {label}-----"])
+
+
+def pem_encoded(label, data):
+    """The expected `pemenc` answer: from Python's own `ssl` for
+    certificates, else from the encoder above."""
+    text = (ssl.DER_cert_to_PEM_cert(data) if label == "CERTIFICATE"
+            else oracle_pem_encode(label, data))
+    return "none" if text is None else "ok:" + text_nums(text)
+
+
+def oracle_pem_decode(text):
+    m = PEM_TEXT.fullmatch(text)
+    if not m:
+        return None
+    label, body = m.group(1), m.group(2)
+    lines = re.split(PEM_EOL, body)[:-1] if body else []
+    if any(len(line) != 64 for line in lines[:-1]) or (lines and len(lines[-1]) > 64):
+        return None
+    b64 = "".join(lines)
+    try:
+        data = binascii.a2b_base64(b64.encode(), strict_mode=True)
+    except binascii.Error:
+        return None
+    if base64.b64encode(data).decode() != b64:
+        return None
+    # Python's own reader, which is lax, must read an accepted certificate
+    # the same way.
+    if label == "CERTIFICATE" and ssl.PEM_cert_to_DER_cert(text) != data:
+        raise AssertionError(f"ssl.PEM_cert_to_DER_cert disagrees on {text!r}")
+    return label, data
+
+
+def pem_decoded(text):
+    result = oracle_pem_decode(text)
+    return "none" if result is None else f"ok:{text_nums(result[0])};{nums(result[1])}"
+
+
+def pem_eols(rng, text):
+    """`text`, each LF replaced by a line end drawn from LF, CR and CR LF."""
+    return "".join(rng.choice(["\n", "\r", "\r\n"]) if c == "\n" else c for c in text)
+
+
+def mutate_pem(rng, text):
+    """One random mutation of a PEM text."""
+    kind = rng.randrange(8)
+    i = rng.randrange(len(text) + 1)
+    if kind == 0 and text:
+        return text[:i % len(text)] + rng.choice(PEM_POOL) + text[i % len(text) + 1:]
+    if kind == 1:
+        return text[:i] + rng.choice(PEM_POOL) + text[i:]
+    if kind == 2 and text:
+        return text[:i % len(text)] + text[i % len(text) + 1:]
+    if kind == 3:
+        return rng.choice(["x\n", "\n", " "]) + text
+    if kind == 4:
+        return text + rng.choice(["x", "\n", " ", "x\n"])
+    if kind == 5:
+        return text.replace("-----END ", "-----END X", 1)
+    if kind == 6:
+        first = text.find("\n")
+        return text[:first + 1] + "Proc-Type: 4,ENCRYPTED\n" + text[first + 1:]
+    # Join two lines, or cut a line in two.
+    nl = [k for k, c in enumerate(text) if c == "\n"]
+    if len(nl) > 2 and rng.random() < 0.5:
+        k = rng.choice(nl[1:-1])
+        return text[:k] + text[k + 1:]
+    return text[:i] + "\n" + text[i:]
+
+
+def luhn_sum(ds):
+    """The Luhn sum: from the right, every second digit doubled, less 9
+    when the double is above 9."""
+    total = 0
+    for i, d in enumerate(reversed(ds)):
+        if i % 2 == 1:
+            d = 2 * d - 9 if 2 * d > 9 else 2 * d
+        total += d
+    return total
+
+
+def oracle_luhn(ds):
+    return str(all(d <= 9 for d in ds) and luhn_sum(ds) % 10 == 0).lower()
+
+
+def oracle_luhn_check(ds):
+    return str((10 - luhn_sum(ds + [0]) % 10) % 10)
+
+
+IBAN_SHAPE = re.compile(r"[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}")
+# Example IBANs, for the SWIFT IBAN Registry's countries among them.
+IBAN_EXAMPLES = ["GB29NWBK60161331926819", "DE89370400440532013000", "FR1420041010050500013M02606",
+                 "NO9386011117947", "MT84MALT011000012345MTLCAST001S", "NL91ABNA0417164300",
+                 "BE68539007547034", "CH9300762011623852957", "ES9121000418450200051332",
+                 "IT60X0542811101000000123456", "LC55HEMM000100010012001200023015",
+                 "FR2130006000010001234B15697", "FR21300060000100012341B5697"]
+
+
+def iban_number(text):
+    return int("".join(str(int(c, 36)) for c in text))
+
+
+def oracle_iban(text):
+    ok = bool(IBAN_SHAPE.fullmatch(text)) and iban_number(text[4:] + text[:4]) % 97 == 1
+    return str(ok).lower()
+
+
+def oracle_iban_check(country, bban):
+    if len(country) != 2 or not IBAN_SHAPE.fullmatch(country + "00" + bban):
+        return "none"
+    return "ok:" + text_nums(f"{98 - iban_number(bban + country + '00') % 97:02d}")
+
+
+IBAN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+IBAN_POOL = IBAN_CHARS + "az -.\xe9"
+
+
+def forged(country, bban):
+    """country, check digits and BBAN, the check digits chosen so that
+    the mod-97 sum passes whatever the shape."""
+    return country + f"{98 - iban_number(bban + country + '00') % 97:02d}" + bban
+
+
+def forged_check(country, check, bban):
+    """country, `check` in the check-digit places, and the BBAN with the
+    two digits after it that make the mod-97 sum pass whatever the
+    shape."""
+    for n in range(100):
+        if iban_number(bban + f"{n:02d}" + country + check) % 97 == 1:
+            return country + check + bban + f"{n:02d}"
+
+
+# Strings whose mod-97 sum passes but whose shape does not, and the
+# edges of the BBAN's length, so only the shape decides; and letters in
+# the check-digit places.
+IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
+                    forged("GB", "nwbk1234"), forged("GB", ""), forged("GB", "A"),
+                    forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
+                    forged("GB", "1" * 31), forged("ZZ", "Z" * 30),
+                    forged_check("GB", "A1", "NWBK1234"), forged_check("GB", "1A", "NWBK1234"),
+                    forged_check("GB", "AB", "NWBK1234"), forged_check("GB", "ZZ", "")]
+
+
+def random_iban(rng):
+    country = "".join(rng.choice(IBAN_CHARS[:26]) for _ in range(2))
+    bban = "".join(rng.choice(rng.choice([IBAN_CHARS, IBAN_CHARS[26:]]))
+                   for _ in range(rng.randint(1, 30)))
+    check = f"{98 - iban_number(bban + country + '00') % 97:02d}"
+    return country, bban, country + check + bban
+
+
+def mutate_iban(rng, text):
+    kind = rng.randrange(6)
+    i = rng.randrange(len(text))
+    if kind == 0:
+        # A character of the same kind in its place.
+        pool = IBAN_CHARS[26:] if text[i].isdigit() else IBAN_CHARS[:26]
+        return text[:i] + rng.choice(pool) + text[i + 1:]
+    if kind == 1 and len(text) > 1:
+        j = rng.randrange(len(text) - 1)
+        return text[:j] + text[j + 1] + text[j] + text[j + 2:]
+    if kind == 2:
+        return text[:i] + rng.choice(IBAN_POOL) + text[i + 1:]
+    if kind == 3:
+        return text[:i] + text[i + 1:]
+    if kind == 4:
+        return text[:i] + rng.choice(IBAN_POOL) + text[i:]
+    return text.lower() if rng.random() < 0.5 else text + rng.choice(IBAN_CHARS)
+
+
+def above_nine(rng, ds):
+    """`ds`, valid, with one digit d made d + 10 where the Luhn sum stays a
+    multiple of 10: at a place that is not doubled, or a doubled place
+    with d at least 5. So only the rule that every digit is 0 to 9
+    decides. `None` when no place qualifies."""
+    places = [i for i in range(len(ds))
+              if (len(ds) - 1 - i) % 2 == 0 or ds[i] >= 5]
+    if not places:
+        return None
+    out = list(ds)
+    out[rng.choice(places)] += 10
+    return out
+
+
+def mutate_digits(rng, ds):
+    out = list(ds)
+    kind = rng.randrange(3)
+    if kind == 0 and out:
+        i = rng.randrange(len(out))
+        out[i] = rng.randrange(10)
+    elif kind == 1 and len(out) > 1:
+        i = rng.randrange(len(out) - 1)
+        out[i], out[i + 1] = out[i + 1], out[i]
+    else:
+        out.insert(rng.randint(0, len(out)), rng.randrange(10))
+    return out
 
 
 def oracle_unframe(fr):
@@ -383,6 +620,41 @@ def fixed_cases():
     # encoder's and the decoder's per-character rules.
     for b in range(256):
         items.append(("pctenc", f"pctenc {b}", oracle_pctenc(bytes([b])), None, False))
+    # Luhn: every number of up to three digits; IBAN: the examples.
+    for n in range(4):
+        for ds in itertools.product(range(10), repeat=n):
+            ds = list(ds)
+            items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
+            items.append(("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False))
+    # Country codes of the wrong length, which can still make a string of
+    # the right shape with the BBAN: "GB1" with "2345" is "GB1002345".
+    # And country codes or BBANs of the wrong shape: an empty BBAN, one of
+    # 31 characters, lower case, a digit or a dash in the country code.
+    for country, bban in [("GB1", "2345"), ("AB1", "2345"), ("G", "B2345"), ("", "GB2345"),
+                          ("GBR", "2345"), ("GB12", "345"), ("GB", ""), ("GB", "A" * 31),
+                          ("GB", "A" * 30), ("GB", "1"), ("gb", "NWBK1234"), ("GB", "nwbk1234"),
+                          ("G1", "2345"), ("1B", "2345"), ("G-", "2345"), ("GB", "NWBK-1234")]:
+        items.append(("ibancheck", f"ibancheck {text_nums(country)};{text_nums(bban)}",
+                      oracle_iban_check(country, bban), None, False))
+    for text in IBAN_EXAMPLES + IBAN_SHAPE_EDGES:
+        items.append(("iban", f"iban {text_nums(text)}", oracle_iban(text), None, False))
+        items.append(("ibancheck", f"ibancheck {text_nums(text[:2])};{text_nums(text[4:])}",
+                      oracle_iban_check(text[:2], text[4:]), None, False))
+    # Numbers above 9 are not digits, for `luhn`; in the last five the sum
+    # is still a multiple of 10, at a place doubled and not.
+    for ds in ([10], [1, 10], [5, 255, 0], [0, 0, 18], [9, 9, 10, 0], [10, 9], [10, 0, 0],
+               [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 13], [7, 9, 9, 2, 7, 3, 9, 8, 17, 1, 3],
+               [7, 9, 9, 2, 7, 3, 9, 18, 7, 1, 3]):
+        items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
+    # PEM: every label above with data at the line edges (48 bytes are
+    # one full line), and every bad label.
+    for label in PEM_LABELS + BAD_PEM_LABELS:
+        for n in (0, 1, 2, 3, 47, 48, 49, 95, 96, 97):
+            data = bytes((7 * k + n) % 256 for k in range(n))
+            items.append(("pemenc", f"pemenc {text_nums(label)};{nums(data)}",
+                          pem_encoded(label, data), None, False))
+            text = oracle_pem_encode(label, data) or f"-----BEGIN {label}-----\n-----END {label}-----\n"
+            items.append(("pemdec", f"pemdec {text_nums(text)}", pem_decoded(text), None, False))
     for c in range(128):
         text = chr(c)
         items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)), None, False))
@@ -447,6 +719,35 @@ def cases(seed, count):
         batch.append(("pctdec", f"pctdec {text_nums(bad_pct)}", decoded(oracle_pctdec(bad_pct)), None, True))
         raw = "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(8)))
         batch.append(("pctdec", f"pctdec {text_nums(raw)}", decoded(oracle_pctdec(raw)), None, False))
+        ds = [rng.randrange(10) for _ in range(rng.randint(0, 24))]
+        ds_valid = ds + [int(oracle_luhn_check(ds))]
+        country, bban, iban = random_iban(rng)
+        bad_iban = changed(mutate_iban, rng, iban)
+        bad_ds = changed(mutate_digits, rng, ds_valid)
+        batch += [
+            ("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False),
+            ("luhn", f"luhn {nums(ds_valid)}", oracle_luhn(ds_valid), None, False),
+            ("luhn", f"luhn {nums(bad_ds)}", oracle_luhn(bad_ds), None, True),
+            ("ibancheck", f"ibancheck {text_nums(country)};{text_nums(bban)}",
+             oracle_iban_check(country, bban), None, False),
+            ("iban", f"iban {text_nums(iban)}", oracle_iban(iban), None, False),
+            ("iban", f"iban {text_nums(bad_iban)}", oracle_iban(bad_iban), None, True),
+            ("ibancheck", f"ibancheck {text_nums(bad_iban[:2])};{text_nums(bad_iban[4:])}",
+             oracle_iban_check(bad_iban[:2], bad_iban[4:]), None, True),
+        ]
+        big = above_nine(rng, ds_valid)
+        if big is not None:
+            batch.append(("luhn", f"luhn {nums(big)}", oracle_luhn(big), None, True))
+        label = rng.choice(PEM_LABELS + BAD_PEM_LABELS[:3])
+        pem_data = data[: rng.choice([0, 1, 47, 48, 49, 96, 97, 200, len(data)])]
+        batch.append(("pemenc", f"pemenc {text_nums(label)};{nums(pem_data)}",
+                      pem_encoded(label, pem_data), None, False))
+        pem_text = oracle_pem_encode(label, pem_data)
+        if pem_text is not None:
+            ends = pem_eols(rng, pem_text)
+            batch.append(("pemdec", f"pemdec {text_nums(ends)}", pem_decoded(ends), None, False))
+            bad_pem = changed(mutate_pem, rng, ends)
+            batch.append(("pemdec", f"pemdec {text_nums(bad_pem)}", pem_decoded(bad_pem), None, True))
         batch = batch[: count - made]
         yield from batch
         made += len(batch)
@@ -514,7 +815,10 @@ def run_tool(data, timeout=TIMEOUT):
 
 def oracle():
     return (f"Python {platform.python_version()} `binascii`, `base64`, `zlib` "
-            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`")
+            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`; for PEM, a strict encoder and "
+            "parser written in tests/run_tests.py from RFC 7468, with `ssl.DER_cert_to_PEM_cert` "
+            "and `ssl.PEM_cert_to_DER_cert` for the `CERTIFICATE` label; for Luhn and IBAN, the "
+            "rules written in tests/run_tests.py, with Python's integers for the IBAN number")
 
 
 def lean_version():
