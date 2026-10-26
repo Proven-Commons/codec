@@ -4,7 +4,10 @@
 The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
 `base64.b64encode` and strict `binascii.a2b_base64`, `zlib.crc32`, and
 for percent-encoding `urllib.parse.quote` with no safe characters and
-`urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape
+`urllib.parse.unquote_to_bytes`; for PEM, `ssl.DER_cert_to_PEM_cert`
+for the `CERTIFICATE` label, and for other labels an encoder and a strict
+parser written here from the ABNF of RFC 7468, section 3, with the base
+64 checked by strict `binascii.a2b_base64`. `unquote_to_bytes` passes a bad escape
 through as text, where RFC 3986 has none, so text is first checked
 against what `Spec.PctReads` accepts, as a regular expression, and only
 text that matches is given to it; the rest must be refused. Inputs come from
@@ -41,6 +44,7 @@ import itertools
 import platform
 import random
 import re
+import ssl
 import subprocess
 import sys
 import threading
@@ -144,6 +148,12 @@ MALFORMED = [
     ("hexdec 48,1114112", "beyond Unicode"),
     ("pctenc 37,256", "a byte above 255"),
     ("pctdec 37,55296", "a surrogate, not a character"),
+    ("pemenc", "no arguments"),
+    ("pemenc 88", "no `;` between the label and the data"),
+    ("pemenc 88;1;2", "two `;`"),
+    ("pemenc 88;256", "a byte above 255"),
+    ("pemenc 55296;1", "a surrogate in the label"),
+    ("pemdec 45,1114112", "beyond Unicode"),
     ("hexdec 48,2097201", "2^21 + 49, which wraps at 21 bits to a digit"),
     ("hexdec 55357,56385", "a UTF-16 surrogate pair, not a character"),
     ("b64dec 90,103,61,99999999999999999999", "beyond Unicode"),
@@ -231,6 +241,96 @@ def mutate_pct(rng, text):
     if kind == 3:
         return text.swapcase()
     return text[:i] + "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(1, 4))) + text[i:]
+
+
+# RFC 7468, section 3: `label`, `eol`, and the strict form (Figure 3).
+PEM_LABEL = r"(?:[\x21-\x2c\x2e-\x7e](?:[- ]?[\x21-\x2c\x2e-\x7e])*)?"
+PEM_EOL = r"(?:\r\n|\r|\n)"
+PEM_TEXT = re.compile(r"-----BEGIN (" + PEM_LABEL + r")-----" + PEM_EOL +
+                      r"((?:[A-Za-z0-9+/=]+" + PEM_EOL + r")*)" +
+                      r"-----END \1-----" + PEM_EOL)
+PEM_LABELS = ["CERTIFICATE", "X509 CRL", "CERTIFICATE REQUEST", "PKCS7", "CMS", "PRIVATE KEY",
+              "ENCRYPTED PRIVATE KEY", "ATTRIBUTE CERTIFICATE", "PUBLIC KEY", "", "A", "a-b c",
+              "!~", "X.509 CERTIFICATE", ",", "A,B", "A:B"]
+BAD_PEM_LABELS = ["A--B", "A  B", "A -B", " A", "A ", "-A", "A-", "-", " ", "\xe9", "\x7f", "A\tB",
+                  "A\nB", "A-----", "\u0130"]
+PEM_POOL = "\r\n -=+/AZaz09-!~,:\t\xe9"
+
+
+def oracle_pem_encode(label, data):
+    if not re.fullmatch(PEM_LABEL, label):
+        return None
+    b64 = base64.b64encode(data).decode()
+    lines = [b64[i:i + 64] for i in range(0, len(b64), 64)]
+    return "".join(line + "\n" for line in
+                   [f"-----BEGIN {label}-----"] + lines + [f"-----END {label}-----"])
+
+
+def pem_encoded(label, data):
+    """The expected `pemenc` answer: from Python's own `ssl` for
+    certificates, else from the encoder above."""
+    text = (ssl.DER_cert_to_PEM_cert(data) if label == "CERTIFICATE"
+            else oracle_pem_encode(label, data))
+    return "none" if text is None else "ok:" + text_nums(text)
+
+
+def oracle_pem_decode(text):
+    m = PEM_TEXT.fullmatch(text)
+    if not m:
+        return None
+    label, body = m.group(1), m.group(2)
+    lines = re.split(PEM_EOL, body)[:-1] if body else []
+    if any(len(line) != 64 for line in lines[:-1]) or (lines and len(lines[-1]) > 64):
+        return None
+    b64 = "".join(lines)
+    try:
+        data = binascii.a2b_base64(b64.encode(), strict_mode=True)
+    except binascii.Error:
+        return None
+    if base64.b64encode(data).decode() != b64:
+        return None
+    # Python's own reader, which is lax, must read an accepted certificate
+    # the same way.
+    if label == "CERTIFICATE" and ssl.PEM_cert_to_DER_cert(text) != data:
+        raise AssertionError(f"ssl.PEM_cert_to_DER_cert disagrees on {text!r}")
+    return label, data
+
+
+def pem_decoded(text):
+    result = oracle_pem_decode(text)
+    return "none" if result is None else f"ok:{text_nums(result[0])};{nums(result[1])}"
+
+
+def pem_eols(rng, text):
+    """`text`, each LF replaced by a line end drawn from LF, CR and CR LF."""
+    return "".join(rng.choice(["\n", "\r", "\r\n"]) if c == "\n" else c for c in text)
+
+
+def mutate_pem(rng, text):
+    """One random mutation of a PEM text."""
+    kind = rng.randrange(8)
+    i = rng.randrange(len(text) + 1)
+    if kind == 0 and text:
+        return text[:i % len(text)] + rng.choice(PEM_POOL) + text[i % len(text) + 1:]
+    if kind == 1:
+        return text[:i] + rng.choice(PEM_POOL) + text[i:]
+    if kind == 2 and text:
+        return text[:i % len(text)] + text[i % len(text) + 1:]
+    if kind == 3:
+        return rng.choice(["x\n", "\n", " "]) + text
+    if kind == 4:
+        return text + rng.choice(["x", "\n", " ", "x\n"])
+    if kind == 5:
+        return text.replace("-----END ", "-----END X", 1)
+    if kind == 6:
+        first = text.find("\n")
+        return text[:first + 1] + "Proc-Type: 4,ENCRYPTED\n" + text[first + 1:]
+    # Join two lines, or cut a line in two.
+    nl = [k for k, c in enumerate(text) if c == "\n"]
+    if len(nl) > 2 and rng.random() < 0.5:
+        k = rng.choice(nl[1:-1])
+        return text[:k] + text[k + 1:]
+    return text[:i] + "\n" + text[i:]
 
 
 def oracle_unframe(fr):
@@ -322,6 +422,15 @@ def fixed_cases():
     # encoder's and the decoder's per-character rules.
     for b in range(256):
         items.append(("pctenc", f"pctenc {b}", oracle_pctenc(bytes([b])), None, False))
+    # PEM: every label above with data at the line edges (48 bytes are
+    # one full line), and every bad label.
+    for label in PEM_LABELS + BAD_PEM_LABELS:
+        for n in (0, 1, 2, 3, 47, 48, 49, 95, 96, 97):
+            data = bytes((7 * k + n) % 256 for k in range(n))
+            items.append(("pemenc", f"pemenc {text_nums(label)};{nums(data)}",
+                          pem_encoded(label, data), None, False))
+            text = oracle_pem_encode(label, data) or f"-----BEGIN {label}-----\n-----END {label}-----\n"
+            items.append(("pemdec", f"pemdec {text_nums(text)}", pem_decoded(text), None, False))
     for c in range(128):
         text = chr(c)
         items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)), None, False))
@@ -378,6 +487,16 @@ def cases(seed, count):
         batch.append(("pctdec", f"pctdec {text_nums(bad_pct)}", decoded(oracle_pctdec(bad_pct)), None, True))
         raw = "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(8)))
         batch.append(("pctdec", f"pctdec {text_nums(raw)}", decoded(oracle_pctdec(raw)), None, False))
+        label = rng.choice(PEM_LABELS + BAD_PEM_LABELS[:3])
+        pem_data = data[: rng.choice([0, 1, 47, 48, 49, 96, 97, 200, len(data)])]
+        batch.append(("pemenc", f"pemenc {text_nums(label)};{nums(pem_data)}",
+                      pem_encoded(label, pem_data), None, False))
+        pem_text = oracle_pem_encode(label, pem_data)
+        if pem_text is not None:
+            ends = pem_eols(rng, pem_text)
+            batch.append(("pemdec", f"pemdec {text_nums(ends)}", pem_decoded(ends), None, False))
+            bad_pem = changed(mutate_pem, rng, ends)
+            batch.append(("pemdec", f"pemdec {text_nums(bad_pem)}", pem_decoded(bad_pem), None, True))
         batch = batch[: count - made]
         yield from batch
         made += len(batch)
@@ -445,7 +564,9 @@ def run_tool(data, timeout=TIMEOUT):
 
 def oracle():
     return (f"Python {platform.python_version()} `binascii`, `base64`, `zlib` "
-            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`")
+            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`; for PEM, a strict encoder and "
+            "parser written in tests/run_tests.py from RFC 7468, with `ssl.DER_cert_to_PEM_cert` "
+            "and `ssl.PEM_cert_to_DER_cert` for the `CERTIFICATE` label")
 
 
 def lean_version():
