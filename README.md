@@ -58,7 +58,7 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for.
+`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for. `tests/planted_bugs.py` plants 103 small bugs in the tool, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch 94 of them and why the other 9 change nothing the tool prints.
 
 ## Layout
 
