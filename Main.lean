@@ -9,6 +9,8 @@
     hexdec 48,49,97,66    prints  ok:1,171   (or none)
     b64enc 102,111        prints  Zm8=
     b64dec 90,103,61,61   prints  ok:102     (or none)
+    b32enc 102,111        prints  MZXQ====
+    b32dec 77,90,88,81,61,61,61,61   prints  ok:102,111     (or none)
     crc 49,50,51          prints  the CRC-32 as a decimal number
     frame 1,2             prints  the framed bytes
     unframe 1,2,3,4,5     prints  ok:... (or none)
@@ -61,6 +63,8 @@ def answer (op : String) (ns : List Nat) : Option String := do
   | "hexdec" => return result (Hex.decode (← toChars ns))
   | "b64enc" => return String.ofList (Base64.encode (← toBytes ns))
   | "b64dec" => return result (Base64.decode (← toChars ns))
+  | "b32enc" => return String.ofList (Base32.encode (← toBytes ns))
+  | "b32dec" => return result (Base32.decode (← toChars ns))
   | "crc" => return toString (Crc32.crc32 (← toBytes ns)).toNat
   | "frame" => return showBytes (Crc32.frame (← toBytes ns))
   | "unframe" => return result (Crc32.unframe (← toBytes ns))
