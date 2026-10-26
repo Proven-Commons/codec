@@ -1,0 +1,14 @@
+{
+  "challenge_module": "Spec",
+  "solution_module": "Proofs",
+  "theorem_names": [
+    "Spec.hex_encode_nil", "Spec.hex_encode_cons", "Spec.hex_decode_encode",
+    "Spec.hex_decode_any_case", "Spec.hex_encode_decode", "Spec.hex_rfc4648_vectors",
+    "Spec.base64_encode_nil", "Spec.base64_encode_three", "Spec.base64_encode_two",
+    "Spec.base64_encode_one", "Spec.base64_decode_encode", "Spec.base64_encode_decode",
+    "Spec.base64_rfc4648_vectors",
+    "Spec.crc32_eq", "Spec.crc32_check", "Spec.frame_layout", "Spec.unframe_frame",
+    "Spec.frame_unframe"
+  ],
+  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]
+}
