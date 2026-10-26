@@ -52,9 +52,12 @@ import Codec
 
 open Codec
 
-/-- A number in plain decimal digits. Longer numbers than any byte or
-    character code are refused before they are converted, since that
-    takes time quadratic in their length. -/
+/-- A number in plain decimal digits. The length cap counts only the
+    digits after any leading zeros. If more than seven are left, the
+    number is larger than any byte or character code. It is then refused
+    before it is converted, since converting it takes time quadratic in
+    its length. Leading zeros take only linear time, so 1,000 zeros and
+    then 1 is converted, and reads as 1. -/
 def number (t : String) : Option Nat :=
   let ds := t.toList
   if ds.isEmpty || !ds.all Char.isDigit || (ds.dropWhile (· = '0')).length > 7 then none
