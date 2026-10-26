@@ -280,10 +280,11 @@ theorem Spec.luhn_vectors :
 theorem Spec.iban_valid_iff (s : List Char) : Iban.valid s = true ↔ Spec.IbanValid s := sorry
 
 /-- `checkDigits` gives exactly the two digits from 02 to 98 that make
-    the IBAN pass the check; there is never more than one. -/
+    the IBAN pass the check, for a country code of two characters; there
+    is never more than one. -/
 theorem Spec.iban_checkDigits_iff (country bban ck : List Char) :
     Iban.checkDigits country bban = some ck ↔
-      ck.length = 2 ∧ (∀ c ∈ ck, Spec.ibanDigit c) ∧
+      country.length = 2 ∧ ck.length = 2 ∧ (∀ c ∈ ck, Spec.ibanDigit c) ∧
         2 ≤ Spec.ibanNumber ck ∧ Spec.ibanNumber ck ≤ 98 ∧
           Spec.IbanValid (country ++ ck ++ bban) := sorry
 

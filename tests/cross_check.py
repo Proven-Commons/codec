@@ -93,7 +93,7 @@ def check_digit_section(args):
         except Exception:
             return "none"
 
-    counts = {"same": 0, "empty": 0, "normalized": 0, "other": []}
+    counts = {"same": 0, "empty": 0, "normalized": 0, "country": 0, "nondigit": 0, "other": []}
     for (label, req), o in zip(items, ours):
         t = theirs(label, req)
         arg = req.split(" ", 1)[1] if " " in req else ""
@@ -104,6 +104,10 @@ def check_digit_section(args):
         elif label in ("iban", "ibancheck") and any(chr(n) in " -." or 97 <= n <= 122
                                                     for n in run_tests_nums(req.replace(";", ","))):
             counts["normalized"] += 1
+        elif label == "luhn" and o == "false" and any(n > 9 for n in run_tests_nums(req)):
+            counts["nondigit"] += 1
+        elif label == "ibancheck" and o == "none" and len(run_tests_nums(req.split(";")[0])) != 2:
+            counts["country"] += 1
         else:
             counts["other"].append((req, o, t))
     # The whole of stdnum's IBAN check, with the SWIFT registry.
@@ -134,7 +138,11 @@ def check_digit_section(args):
         f"- Requests: {len(items)}. The same answer: {counts['same']}. An empty Luhn number, "
         f"which this codec passes and stdnum refuses: {counts['empty']}. IBAN text with a space, "
         f"a dash, a dot or a lower-case letter, which stdnum removes or upper-cases first and this codec "
-        f"refuses: {counts['normalized']}. Other differences: {len(counts['other'])}.",
+        f"refuses: {counts['normalized']}. A country code that is not two characters, which this "
+        f"codec refuses and stdnum's `calc_check_digits` takes, since it does not check the "
+        f"country code: {counts['country']}. A Luhn number with a value above 9, which this codec refuses as "
+        f"not a digit and which, written out for stdnum, becomes more than one digit: "
+        f"{counts['nondigit']}. Other differences: {len(counts['other'])}.",
         f"- The same IBANs given to stdnum's whole `iban.validate`: the same answer on "
         f"{full['same']}. It refuses, for a country code or BBAN format not in the SWIFT registry, "
         f"{full['registry']} that pass this codec's check, which does not use the registry. Read "

@@ -38,9 +38,9 @@ def valid (s : List Char) : Bool :=
 
 /-- The check digits, 02 to 98, for a country code and a BBAN: 98 less
     the remainder of the BBAN, the country code and `00`. `none` when the
-    country code or the BBAN has the wrong shape. -/
+    country code is not two letters or the BBAN has the wrong shape. -/
 def checkDigits (country bban : List Char) : Option (List Char) :=
-  if wellShaped (country ++ ['0', '0'] ++ bban) then
+  if country.length = 2 ∧ wellShaped (country ++ ['0', '0'] ++ bban) then
     let c := 98 - mod97 (bban ++ country ++ ['0', '0'])
     some [Char.ofNat (48 + c / 10), Char.ofNat (48 + c % 10)]
   else none

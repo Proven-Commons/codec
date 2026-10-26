@@ -377,13 +377,27 @@ def oracle_iban(text):
 
 
 def oracle_iban_check(country, bban):
-    if not IBAN_SHAPE.fullmatch(country + "00" + bban):
+    if len(country) != 2 or not IBAN_SHAPE.fullmatch(country + "00" + bban):
         return "none"
     return "ok:" + text_nums(f"{98 - iban_number(bban + country + '00') % 97:02d}")
 
 
 IBAN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 IBAN_POOL = IBAN_CHARS + "az -.\xe9"
+
+
+def forged(country, bban):
+    """country, check digits and BBAN, the check digits chosen so that
+    the mod-97 sum passes whatever the shape."""
+    return country + f"{98 - iban_number(bban + country + '00') % 97:02d}" + bban
+
+
+# Strings whose mod-97 sum passes but whose shape does not, and the
+# edges of the BBAN's length, so only the shape decides.
+IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
+                    forged("GB", "nwbk1234"), forged("GB", ""), forged("GB", "A"),
+                    forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
+                    forged("GB", "1" * 31), forged("ZZ", "Z" * 30)]
 
 
 def random_iban(rng):
@@ -522,8 +536,17 @@ def fixed_cases():
             ds = list(ds)
             items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
             items.append(("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False))
-    for text in IBAN_EXAMPLES:
+    # Country codes of the wrong length, which can still make a string of
+    # the right shape with the BBAN: "GB1" with "2345" is "GB1002345".
+    for country, bban in [("GB1", "2345"), ("AB1", "2345"), ("G", "B2345"), ("", "GB2345"),
+                          ("GBR", "2345"), ("GB12", "345")]:
+        items.append(("ibancheck", f"ibancheck {text_nums(country)};{text_nums(bban)}",
+                      oracle_iban_check(country, bban), None, False))
+    for text in IBAN_EXAMPLES + IBAN_SHAPE_EDGES:
         items.append(("iban", f"iban {text_nums(text)}", oracle_iban(text), None, False))
+    # Numbers above 9 are not digits, for `luhn`.
+    for ds in ([10], [1, 10], [5, 255, 0], [0, 0, 18], [9, 9, 10, 0]):
+        items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
         items.append(("ibancheck", f"ibancheck {text_nums(text[:2])};{text_nums(text[4:])}",
                       oracle_iban_check(text[:2], text[4:]), None, False))
     # PEM: every label above with data at the line edges (48 bytes are

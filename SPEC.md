@@ -61,7 +61,7 @@ Scope: the check digit of ISO/IEC 7812-1, Annex B, from H. P. Luhn's US patent 2
 Scope: the check digits of ISO 13616-1, by ISO 7064 MOD 97-10, on the electronic form: a country code of two upper-case letters, two check digits, and a BBAN of 1 to 30 upper-case letters and digits.
 
 - `valid` holds when the text has that shape and, with its first four characters moved to the end and each letter written as A = 10 to Z = 35, the digits read as one number leave 1 when divided by 97.
-- `checkDigits` gives, for a country code and a BBAN of the right shape, the two digits from 02 to 98 that make the IBAN pass: 98 less the remainder of the BBAN, the country code and `00`. There is never more than one, and it fails on the wrong shape.
+- `checkDigits` gives, for a country code of two letters and a BBAN of the right shape, the two digits from 02 to 98 that make the IBAN pass: 98 less the remainder of the BBAN, the country code and `00`. There is never more than one, and it fails on the wrong shape, a country code of any other length included.
 - What the check catches is a theorem: one digit typed for another or one letter for another, and two adjacent digits or two adjacent letters typed in the wrong order. Where the rearrangement splits an adjacent pair, the 4th and 5th characters, the swap is still caught, since 10 has order 96 mod 97. A letter and a digit swapped need not be caught: B is 11, so `4B1` and `41B` both read as `4111`, and a proved vector gives two IBANs that pass and differ only so.
 - Not checked: each country's BBAN format and length, in the SWIFT IBAN Registry, and whether the country code is one. Check digits 00, 01 and 99 never come from the computation, but an IBAN with them can pass the check.
 
