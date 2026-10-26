@@ -6,17 +6,17 @@ against the changed tool. A bug is caught when they report failures.
 
 | Bug | File | Failures |
 |-----|------|----------|
-| m01_bytes_mod_512 | `Main.lean` | 6 |
+| m01_bytes_mod_512 | `Main.lean` | 7 |
 | m02_underscores | `Main.lean` | 1 |
-| m03_invalid_cp_to_fffd | `Main.lean` | 5 |
-| m04_drop_last_number | `Main.lean` | 21611 |
+| m03_invalid_cp_to_fffd | `Main.lean` | 6 |
+| m04_drop_last_number | `Main.lean` | 22414 |
 | m05_trailing_comma | `Main.lean` | 1 |
 | m06_case_insensitive_op | `Main.lean` | 2 |
 | m07_tab_separator | `Main.lean` | 1 |
 | m08_uint64_parser_nocap | `Main.lean` | 5 |
 | m08b_uint64_parser_cap | `Main.lean` | 0, equivalent: The cap leaves at most seven digits after the leading zeros. So the value is below 10,000,000, and a UInt64 cannot overflow. |
-| m09_cp_mod_256 | `Main.lean` | 814 |
-| m10_cp_mod_65536 | `Main.lean` | 500 |
+| m09_cp_mod_256 | `Main.lean` | 796 |
+| m10_cp_mod_65536 | `Main.lean` | 334 |
 | m11a_cp_via_uint32_cap | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the trip through UInt32 changes nothing. |
 | m11b_cp_via_uint32_nocap | `Main.lean` | 4 |
 | m12_hexenc_unchecked | `Main.lean` | 3 |
@@ -33,30 +33,30 @@ against the changed tool. A bug is caught when they report failures.
 | m21_chomp_strips_mid_cr | `Main.lean` | 4 |
 | m22_cap_counts_leading_zeros | `Main.lean` | 3 |
 | m22b_cap_32_chars_with_zeros | `Main.lean` | 1 |
-| m23_cap_6 | `Main.lean` | 217 |
+| m23_cap_6 | `Main.lean` | 144 |
 | m24_no_cap | `Main.lean` | 0, equivalent: Without the cap, a long number is converted, which only takes longer. It is above 255 and above 0x10FFFF, so the answer is still `error`. |
-| m25_accept_surrogates | `Main.lean` | 3 |
+| m25_accept_surrogates | `Main.lean` | 4 |
 | m26_accept_0x110000 | `Main.lean` | 1 |
 | m27_accept_trailing_space | `Main.lean` | 3 |
-| m28r_reject_empty_arg | `Main.lean` | 2388 |
-| m29_swap_hexenc_b64enc | `Main.lean` | 4758 |
-| m29b_swap_frame_unframe | `Main.lean` | 8153 |
-| m30_hexenc_uppercase | `Main.lean` | 2162 |
+| m28r_reject_empty_arg | `Main.lean` | 2401 |
+| m29_swap_hexenc_b64enc | `Main.lean` | 3028 |
+| m29b_swap_frame_unframe | `Main.lean` | 5130 |
+| m30_hexenc_uppercase | `Main.lean` | 1390 |
 | m31_trim_each_number | `Main.lean` | 4 |
 | m32_crlf_output | `Main.lean` | 30006 |
 | m33_cr_only_output | `Main.lean` | 30007 |
-| m34_reject_nul_code_point | `Main.lean` | 2 |
-| m34b_nul_as_invalid_sentinel | `Main.lean` | 2 |
-| m35_no_eof_check | `Main.lean` | 2686853 |
+| m34_reject_nul_code_point | `Main.lean` | 188 |
+| m34b_nul_as_invalid_sentinel | `Main.lean` | 188 |
+| m35_no_eof_check | `Main.lean` | 3157781 |
 | m36_no_arg_form_refused | `Main.lean` | 1 |
-| m37_chars_below_256_only | `Main.lean` | 1014 |
+| m37_chars_below_256_only | `Main.lean` | 1065 |
 | m38_strip_cr_before_lf | `Main.lean` | 3 |
-| m39_showbytes_comma_space | `Main.lean` | 11595 |
-| m40_swap_hexdec_b64dec | `Main.lean` | 8160 |
+| m39_showbytes_comma_space | `Main.lean` | 13076 |
+| m40_swap_hexdec_b64dec | `Main.lean` | 5207 |
 | m41_unchecked_chars_b64dec | `Main.lean` | 1 |
 | m42_unchecked_chars_hexdec | `Main.lean` | 4 |
 | m43_cr_as_separator | `Main.lean` | 1 |
-| m44_parse_after_zero_strip | `Main.lean` | 2604 |
+| m44_parse_after_zero_strip | `Main.lean` | 2066 |
 | m45_toInt_nonneg | `Main.lean` | 3 |
 | m45b_toInt_nonneg_cap | `Main.lean` | 3 |
 | m45c_minus_sign_then_nonneg | `Main.lean` | 2 |
@@ -66,7 +66,7 @@ against the changed tool. A bug is caught when they report failures.
 | n04_chomp_nel_before_lf | `Main.lean` | 1 |
 | n05_chomp_ls_ps_before_lf | `Main.lean` | 2 |
 | n06_unicode_eol_at_eof | `Main.lean` | 1 |
-| n07_ls_splits_requests | `Main.lean` | 24948 |
+| n07_ls_splits_requests | `Main.lean` | 26033 |
 | n08_chomp_ff_fs_gs_rs_before_lf | `Main.lean` | 2 |
 | n09_chomp_filter_all_lf | `Main.lean` | 0, equivalent: A line from getLine holds at most one LF, at its end. So removing every LF removes just that one. |
 | n10_leading_bom_dropped | `Main.lean` | 2 |
@@ -85,30 +85,37 @@ against the changed tool. A bug is caught when they report failures.
 | n23_cap_8 | `Main.lean` | 0, equivalent: A number with eight digits after its leading zeros is at least 10,000,000. That is above 255 and above 0x10FFFF, so the answer is still `error`. |
 | n24_cap_ignores_all_zeros | `Main.lean` | 0, equivalent: A number this lets past the cap still has eight or more digits after its leading zeros. So it is at least 10,000,000, and the range checks still refuse it. |
 | n25_cap_takewhile_zeros | `Main.lean` | 2 |
-| n26_zero_refused | `Main.lean` | 2604 |
-| n27_bytes_le_256 | `Main.lean` | 4 |
+| n26_zero_refused | `Main.lean` | 2066 |
+| n27_bytes_le_256 | `Main.lean` | 5 |
 | n28_bytes_via_uint16 | `Main.lean` | 1 |
 | n29_bytes_via_uint32 | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the value never wraps. |
-| n30_cp_lt_10ffff | `Main.lean` | 3 |
+| n30_cp_lt_10ffff | `Main.lean` | 7 |
 | n31_cp_mask_21_bits | `Main.lean` | 1 |
 | n32_cp_mask_24_bits | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^24. So the mask changes nothing. |
-| n33_surrogate_D800_accepted | `Main.lean` | 1 |
+| n33_surrogate_D800_accepted | `Main.lean` | 2 |
 | n34_surrogate_DFFF_accepted | `Main.lean` | 1 |
-| n35_D7FF_refused | `Main.lean` | 2 |
-| n36_E000_refused | `Main.lean` | 2 |
+| n35_D7FF_refused | `Main.lean` | 6 |
+| n36_E000_refused | `Main.lean` | 6 |
 | n37_surrogate_pairs_combined | `Main.lean` | 1 |
-| n38_c0_controls_refused | `Main.lean` | 73 |
-| n39_noncharacters_refused | `Main.lean` | 5 |
+| n38_c0_controls_refused | `Main.lean` | 175 |
+| n39_noncharacters_refused | `Main.lean` | 13 |
 | n40_no_lf_on_last_answer | `Main.lean` | 7 |
 | n41_bom_before_output | `Main.lean` | 7 |
 | n42_trailing_space_every_answer | `Main.lean` | 30006 |
-| n43_trailing_space_on_error | `Main.lean` | 74 |
+| n43_trailing_space_on_error | `Main.lean` | 76 |
 | n44_blank_line_after_last | `Main.lean` | 7 |
 | n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr. The tool prints the same on stdout, and the tests and SPEC.md cover stdout only. |
 | n46_exit_status_1 | `Main.lean` | 7 |
-| n47_bom_on_error_lines | `Main.lean` | 74 |
+| n47_bom_on_error_lines | `Main.lean` | 76 |
 | n48_minus_on_first_number | `Main.lean` | 1 |
 | n49_bom_on_first_line_only | `Main.lean` | 1 |
+| p01_lowercase_digits | `Codec/Percent.lean` | 1479 |
+| p02_tilde_encoded | `Codec/Percent.lean` | 206 |
+| p03_asterisk_kept | `Codec/Percent.lean` | 216 |
+| p04_non_ascii_low_byte | `Codec/Percent.lean` | 499 |
+| p05_bad_escape_passed_through | `Codec/Percent.lean` | 205 |
+| p06_digits_low_half_first | `Codec/Percent.lean` | 5284 |
+| p07_space_refused | `Codec/Percent.lean` | 84 |
 
 ## The changes
 
@@ -950,4 +957,53 @@ against the changed tool. A bug is caught when they report failures.
 +     if line.isEmpty then break
 +     let line := chomp (if first then String.ofList (match line.toList with | '\uFEFF' :: r => r | cs => cs) else line)
 +     first := false
+```
+
+**p01_lowercase_digits** in `Codec/Percent.lean`:
+
+```
+- "0123456789ABCDEF"
++ "0123456789abcdef"
+```
+
+**p02_tilde_encoded** in `Codec/Percent.lean`:
+
+```
+-  || n == 0x7E
++ 
+```
+
+**p03_asterisk_kept** in `Codec/Percent.lean`:
+
+```
+- n == 0x2D || n == 0x2E
++ n == 0x2D || n == 0x2E || n == 0x2A
+```
+
+**p04_non_ascii_low_byte** in `Codec/Percent.lean`:
+
+```
+- if c.toNat < 0x80 then (decode rest).map (c.toNat.toUInt8 :: ·) else none
++ (decode rest).map (c.toNat.toUInt8 :: ·)
+```
+
+**p05_bad_escape_passed_through** in `Codec/Percent.lean`:
+
+```
+-   | '%' :: _ => none
++   | '%' :: rest => (decode rest).map (0x25 :: ·)
+```
+
+**p06_digits_low_half_first** in `Codec/Percent.lean`:
+
+```
+- | some h, some l, some tail => some ((h * 16 + l).toUInt8 :: tail)
++ | some h, some l, some tail => some ((l * 16 + h).toUInt8 :: tail)
+```
+
+**p07_space_refused** in `Codec/Percent.lean`:
+
+```
+- if c.toNat < 0x80 then
++ if c.toNat < 0x80 ∧ c ≠ ' ' then
 ```
