@@ -25,7 +25,8 @@
   character codes.
 
   A request is an operation, then optionally one space and its numbers;
-  with no numbers after the space, the input is empty. A malformed
+  with no numbers after the space, the input is empty. `pemenc` is the
+  exception: it needs its one space and one `;`. A malformed
   request prints `error`: any other line, an unknown operation, a number
   that is not plain decimal digits, a byte above 255, or a character
   code that is not a Unicode scalar value. A line may end in LF or

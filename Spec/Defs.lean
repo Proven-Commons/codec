@@ -1,6 +1,8 @@
 /-
   The definitions the specification uses, written from the standards,
-  independently of the code in `Codec/`. Part of the approved
+  independently of the code in `Codec/`, with one exception: the PEM
+  definitions take their base 64 from `Base64.encode`, which the base 64
+  statements in `Spec.lean` pin down exactly. Part of the approved
   specification, with `Spec.lean`.
 
   Both the challenge file and the proofs import this file, so each
@@ -208,11 +210,14 @@ Section 2: "Generators MUST put the same label on the "-----END " line
 of exactly 64 characters except for the final line".
 
 The base 64 is RFC 4648, section 4, as `Base64.encode` writes it; its
-statements above pin it down. Two points the strict form leaves open are
-settled here. It has no text for empty data, since `strictbase64finl`
-needs four characters: here empty data has no line of base 64. And it
-allows a final group whose unused bits are not zero, which strict base 64
-refuses: here the base 64 is exactly `Base64.encode` of the data. -/
+statements pin it down. Two points depart from the strict form. It has
+no text for empty data, since `strictbase64finl` needs four characters:
+here empty data has no line of base 64, so its text is the BEGIN and END
+lines alone. With LF line ends only the lax form (Figure 2) allows that
+text, and the standard form's text for empty data (Figure 1), with one
+empty line, is refused. And the strict form allows a final group whose
+unused bits are not zero, which strict base 64 refuses: here the base 64
+is exactly `Base64.encode` of the data. -/
 
 /-- `labelchar`: printable US-ASCII, `!` to `~`, except `-`. -/
 def Spec.labelChar (c : Char) : Prop :=
@@ -245,7 +250,7 @@ inductive Spec.LinesEol : List Char → List (List Char) → Prop where
       Spec.LinesEol (l ++ e ++ rest) (l :: ls)
 
 /-- `*base64fullline strictbase64finl`, without the line ends: the base
-    64 text cut into lines of 64 characters, the last one shorter. -/
+    64 text cut into lines of 64 characters, the last one at most 64. -/
 def Spec.lines64 (s : List Char) : List (List Char) :=
   (List.range ((s.length + 63) / 64)).map fun i => (s.drop (64 * i)).take 64
 

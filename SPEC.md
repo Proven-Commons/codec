@@ -39,20 +39,20 @@ Decoders differ on bad escapes. Go's `url.PathUnescape` returns an error, as thi
 
 Scope: RFC 7468, the textual encoding of PKIX, PKCS, and CMS structures, in its strict form (section 3, Figure 3). One message: a BEGIN line with a label, the base 64 of the data (RFC 4648, section 4, as the base 64 codec above writes it), and an END line with the same label.
 
-- Encoding writes `-----BEGIN label-----`, the base 64 in lines of exactly 64 characters with the last line shorter, and `-----END label-----`, each line ending in LF. It fails on a label that the `label` rule does not allow: `label = [ labelchar *( ["-" / SP] labelchar ) ]`, where a `labelchar` is printable US-ASCII except `-`. So a label is empty, or has no `-` or space at either end and never two in a row.
+- Encoding writes `-----BEGIN label-----`, the base 64 in lines of 64 characters with the last line at most 64, and `-----END label-----`, each line ending in LF. It fails on a label that the `label` rule does not allow: `label = [ labelchar *( ["-" / SP] labelchar ) ]`, where a `labelchar` is printable US-ASCII except `-`. So a label is empty, or has no `-` or space at either end and never two in a row.
 - Decoding reads exactly one message in that form. Each line may end in LF, CR, or CR LF, as the `eol` rule allows; CR LF is one line end. It fails on everything else, including:
   - a different label on the END line, which the RFC lets parsers ignore but this one does not;
   - blanks, empty lines, headers, and text before or after the message;
   - a base 64 line of another length;
   - base 64 that is not exactly the encoding of the data, such as a last group whose unused bits are not zero.
 
-The strict form has no text for empty data, since its last line of base 64 needs four characters. Here empty data is the BEGIN and END lines with nothing between, as Go's `encoding/pem` and Python's `ssl.DER_cert_to_PEM_cert` write it.
+The strict form has no text for empty data, since its last line of base 64 needs four characters. Here empty data is the BEGIN and END lines with nothing between, as Go's `encoding/pem` and Python's `ssl.DER_cert_to_PEM_cert` write it. With LF line ends, only the lax form (Figure 2) allows that text; the text the standard form (Figure 1) gives empty data, with one empty line between BEGIN and END, is refused.
 
 ## Valid inputs and errors
 
-Every encoder input and every `crc32` and `frame` input is valid. The decoders and `unframe` return `none` for anything they do not accept. No function can fail any other way.
+Every encoder input, except a PEM label that the `label` rule refuses, and every `crc32` and `frame` input is valid. The decoders and `unframe` return `none` for anything they do not accept, and PEM encoding returns `none` for such a label. No function can fail any other way.
 
-The command-line tool in `Main.lean` reads one request per line and prints one answer per line. A request is an operation, then optionally one space and its comma-separated numbers; with no numbers after the space, the input is empty. The tool prints `error` for any other line, an unknown operation, a number that is not plain decimal digits, a byte above 255, or a character code that is not a Unicode scalar value. A line may end in LF or CR LF; nothing else around a request is ignored.
+The command-line tool in `Main.lean` reads one request per line and prints one answer per line. A request is an operation, then optionally one space and its comma-separated numbers; with no numbers after the space, the input is empty. `pemenc` is the exception: after its one space come the label's character codes, `;`, and the bytes, each list possibly empty, and it answers `ok:` and the character codes of the PEM text, or `none`. `pemdec` answers `ok:`, the label's character codes, `;`, and the bytes, or `none`. The tool prints `error` for any other line, including `pemenc` without its space or its `;`, an unknown operation, a number that is not plain decimal digits, a byte above 255, or a character code that is not a Unicode scalar value. A line may end in LF or CR LF; nothing else around a request is ignored.
 
 ## What must always hold
 
@@ -88,4 +88,4 @@ Together these fix every output. The encoders, `crc32`, and `frame` are given ex
 
 ## Oracle
 
-Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest. For PEM, `ssl.DER_cert_to_PEM_cert` for the `CERTIFICATE` label, and for other labels an encoder and a strict parser written in the tests from the ABNF of RFC 7468, with the base 64 checked by strict `binascii.a2b_base64` and by encoding it again.
+Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest. For PEM, a strict parser written in the tests from the ABNF of RFC 7468 decides every decoding, with the base 64 checked by strict `binascii.a2b_base64` and by encoding it again; where it accepts a text with the `CERTIFICATE` label, Python's `ssl.PEM_cert_to_DER_cert` must read the same data. Encoding is checked against `ssl.DER_cert_to_PEM_cert` for the `CERTIFICATE` label and against an encoder written in the tests for the others.

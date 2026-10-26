@@ -184,14 +184,16 @@ RFC 7468, the strict form of the textual encoding (Figure 3): a BEGIN
 line with a label, the base 64 of the data in lines of 64 characters,
 and an END line with the same label. -/
 
-/-- The encoder writes exactly the strict form, each line ending in LF,
-    and fails on a label the `label` rule does not allow. -/
+/-- The encoder writes the strict form, each line ending in LF, and for
+    empty data the BEGIN and END lines alone; it fails on a label the
+    `label` rule does not allow. -/
 theorem Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List Char) :
     Pem.encode label data = some text ↔ Spec.Label label ∧ text = Spec.pemText label data :=
   sorry
 
-/-- The decoder reads exactly the messages in the strict form, with any
-    `eol` at the end of each line, and gives their label and data. So
+/-- The decoder reads exactly the messages in the strict form, and for
+    empty data the BEGIN and END lines alone, with any `eol` at the end
+    of each line, and gives their label and data. So
     it refuses a different label on the END line, blanks, headers, text
     before or after the message, lines of another length, and base 64
     that is not exactly the encoding of the data. -/
@@ -217,6 +219,7 @@ theorem Spec.pem_vectors :
     Pem.decode "-----BEGIN -----\rAA==\r-----END -----\r".toList = some ([], [0]) ∧
     Pem.encode "RSA PRIVATE KEY".toList [0] =
       some "-----BEGIN RSA PRIVATE KEY-----\nAA==\n-----END RSA PRIVATE KEY-----\n".toList ∧
+    Pem.encode "A,B".toList [] = some "-----BEGIN A,B-----\n-----END A,B-----\n".toList ∧
     Pem.encode "A--B".toList [] = none ∧
     Pem.encode "A  B".toList [] = none ∧
     Pem.encode " A".toList [] = none ∧

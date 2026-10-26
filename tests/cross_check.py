@@ -59,7 +59,7 @@ def pem_section(args, version):
     if len(go) != len(items):
         sys.exit(f"Go gave {len(go)} answers for {len(items)} PEM requests")
     enc = {"same": 0, "Go writes a label this encoder refuses": 0, "other": []}
-    dec = {"same": 0, "Go reads text this decoder refuses": 0, "lone CR": 0, "other": []}
+    dec = {"same": 0, "Go reads text this decoder refuses": 0, "lone CR": 0, "colon": 0, "other": []}
     for (label, req, _), o, g in zip(items, ours, go):
         if label == "pemenc":
             if o == g:
@@ -75,6 +75,11 @@ def pem_section(args, version):
                 dec["same"] += 1
             elif o == "none":
                 dec["Go reads text this decoder refuses"] += 1
+            elif o.endswith(";") and ":" in "".join(map(chr, run_tests_nums(req))).split("\n")[0] \
+                    and g == "none":
+                # Empty data under a label with `:`: Go takes the END line
+                # for an RFC 1421 header.
+                dec["colon"] += 1
             elif re.search("\r(?!\n)", "".join(map(chr, run_tests_nums(req)))):
                 # RFC 7468 allows CR alone as a line end; Go splits lines
                 # at LF only.
@@ -93,7 +98,9 @@ def pem_section(args, version):
         f"both, with nothing left over in Go: {dec['same']}. Go reads text this decoder refuses: "
         f"{dec['Go reads text this decoder refuses']}. This decoder accepts text with a CR "
         f"alone as a line end, as RFC 7468's `eol` allows, and Go does not, since it ends lines "
-        f"at LF only: {dec['lone CR']}. Other differences, where this decoder accepts text that "
+        f"at LF only: {dec['lone CR']}. This decoder reads empty data under a label with a `:`, "
+        f"and Go takes the END line for a header: {dec['colon']}. Other differences, where this "
+        f"decoder accepts text that "
         f"Go reads differently or not at all: {len(dec['other'])}.",
         "",
     ]

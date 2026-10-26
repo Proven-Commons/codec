@@ -2,7 +2,7 @@
   PEM, the textual encoding of RFC 7468, in its strict form (Figure 3):
 
     -----BEGIN label-----
-    the base 64 of the data, in lines of 64 characters, the last shorter
+    the base 64 of the data, in lines of 64 characters, the last at most 64
     -----END label-----
 
   `encode` writes each line ending in LF, and fails on a label that the
@@ -40,7 +40,7 @@ def validLabel : List Char → Bool
   | [] => true
   | c :: rest => isLabelChar c && labelRest rest
 
-/-- Cut text into lines of 64 characters, the last one shorter. `fuel`
+/-- Cut text into lines of 64 characters, the last one at most 64. `fuel`
     equal to the text's length is enough. -/
 def lines64 : Nat → List Char → List (List Char)
   | _, [] => []

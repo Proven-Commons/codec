@@ -220,6 +220,7 @@ theorem Spec.pem_vectors :
     Pem.decode "-----BEGIN -----\rAA==\r-----END -----\r".toList = some ([], [0]) ∧
     Pem.encode "RSA PRIVATE KEY".toList [0] =
       some "-----BEGIN RSA PRIVATE KEY-----\nAA==\n-----END RSA PRIVATE KEY-----\n".toList ∧
+    Pem.encode "A,B".toList [] = some "-----BEGIN A,B-----\n-----END A,B-----\n".toList ∧
     Pem.encode "A--B".toList [] = none ∧
     Pem.encode "A  B".toList [] = none ∧
     Pem.encode " A".toList [] = none ∧

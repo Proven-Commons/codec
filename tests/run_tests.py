@@ -251,10 +251,10 @@ PEM_TEXT = re.compile(r"-----BEGIN (" + PEM_LABEL + r")-----" + PEM_EOL +
                       r"-----END \1-----" + PEM_EOL)
 PEM_LABELS = ["CERTIFICATE", "X509 CRL", "CERTIFICATE REQUEST", "PKCS7", "CMS", "PRIVATE KEY",
               "ENCRYPTED PRIVATE KEY", "ATTRIBUTE CERTIFICATE", "PUBLIC KEY", "", "A", "a-b c",
-              "!~", "X.509 CERTIFICATE"]
+              "!~", "X.509 CERTIFICATE", ",", "A,B", "A:B"]
 BAD_PEM_LABELS = ["A--B", "A  B", "A -B", " A", "A ", "-A", "A-", "-", " ", "\xe9", "\x7f", "A\tB",
                   "A\nB", "A-----", "\u0130"]
-PEM_POOL = "\r\n -=+/AZaz09-!~\t\xe9"
+PEM_POOL = "\r\n -=+/AZaz09-!~,:\t\xe9"
 
 
 def oracle_pem_encode(label, data):
@@ -289,6 +289,10 @@ def oracle_pem_decode(text):
         return None
     if base64.b64encode(data).decode() != b64:
         return None
+    # Python's own reader, which is lax, must read an accepted certificate
+    # the same way.
+    if label == "CERTIFICATE" and ssl.PEM_cert_to_DER_cert(text) != data:
+        raise AssertionError(f"ssl.PEM_cert_to_DER_cert disagrees on {text!r}")
     return label, data
 
 
@@ -560,7 +564,9 @@ def run_tool(data, timeout=TIMEOUT):
 
 def oracle():
     return (f"Python {platform.python_version()} `binascii`, `base64`, `zlib` "
-            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`, `ssl.DER_cert_to_PEM_cert`")
+            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`; for PEM, a strict encoder and "
+            "parser written in tests/run_tests.py from RFC 7468, with `ssl.DER_cert_to_PEM_cert` "
+            "and `ssl.PEM_cert_to_DER_cert` for the `CERTIFICATE` label")
 
 
 def lean_version():
