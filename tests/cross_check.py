@@ -87,13 +87,13 @@ def check_digit_section(args):
             text = "".join(map(chr, run_tests_nums(req)))
             return str(bool(run_tests.IBAN_SHAPE.fullmatch(text))
                        and mod_97_10.is_valid(text[4:] + text[:4])).lower()
-        country, bban = (bytes(int(n) for n in part.split(",") if n).decode() for part in arg.split(";"))
+        country, bban = ("".join(chr(int(n)) for n in part.split(",") if n) for part in arg.split(";"))
         try:
             return "ok:" + run_tests.text_nums(iban.calc_check_digits(country + "00" + bban))
         except Exception:
             return "none"
 
-    counts = {"same": 0, "empty": 0, "normalized": 0, "country": 0, "nondigit": 0, "other": []}
+    counts = {"same": 0, "empty": 0, "normalized": 0, "country": 0, "shape": 0, "nondigit": 0, "other": []}
     for (label, req), o in zip(items, ours):
         t = theirs(label, req)
         arg = req.split(" ", 1)[1] if " " in req else ""
@@ -108,10 +108,12 @@ def check_digit_section(args):
             counts["nondigit"] += 1
         elif label == "ibancheck" and o == "none" and len(run_tests_nums(req.split(";")[0])) != 2:
             counts["country"] += 1
+        elif label == "ibancheck" and o == "none":
+            counts["shape"] += 1
         else:
             counts["other"].append((req, o, t))
     # The whole of stdnum's IBAN check, with the SWIFT registry.
-    full = {"same": 0, "registry": 0, "normalized": 0, "other": []}
+    full = {"same": 0, "same_true": 0, "registry": 0, "national": 0, "normalized": 0, "other": []}
     for (label, req), o in zip(items, ours):
         if label != "iban":
             continue
@@ -123,8 +125,15 @@ def check_digit_section(args):
             t, why = "false", type(e).__name__
         if o == t:
             full["same"] += 1
+            full["same_true"] += t == "true"
         elif o == "true" and why in ("InvalidComponent", "InvalidFormat", "InvalidLength"):
-            full["registry"] += 1
+            # stdnum also runs its own national checks (bank lists, national
+            # check digits); those refusals are not the registry's.
+            try:
+                iban.validate(text, check_country=False)
+                full["national"] += 1
+            except Exception:
+                full["registry"] += 1
         elif any(c in " -." or c.islower() for c in text):
             full["normalized"] += 1
         else:
@@ -134,19 +143,25 @@ def check_digit_section(args):
         "## Luhn and IBAN",
         "",
         "- python-stdnum 2.2: `luhn.is_valid`, `luhn.calc_check_digit`, "
-        "`iban.calc_check_digits`, and `iso7064.mod_97_10.is_valid` for the IBAN check",
+        "`iban.calc_check_digits`, and `iso7064.mod_97_10.is_valid` for the IBAN check. stdnum "
+        "has no check of the IBAN shape on its own, so for `iban` requests the shape comes from "
+        "the tests' own regular expression and only the mod 97-10 check from stdnum",
         f"- Requests: {len(items)}. The same answer: {counts['same']}. An empty Luhn number, "
         f"which this codec passes and stdnum refuses: {counts['empty']}. IBAN text with a space, "
         f"a dash, a dot or a lower-case letter, which stdnum removes or upper-cases first and this codec "
         f"refuses: {counts['normalized']}. A country code that is not two characters, which this "
         f"codec refuses and stdnum's `calc_check_digits` takes, since it does not check the "
-        f"country code: {counts['country']}. A Luhn number with a value above 9, which this codec refuses as "
+        f"country code: {counts['country']}. A country code and BBAN that do not have the IBAN's shape, such as "
+        f"an empty BBAN or one of 31 characters, which this codec refuses and `calc_check_digits` "
+        f"takes, since it does not check the shape: {counts['shape']}. A Luhn number with a value above 9, which this codec refuses as "
         f"not a digit and which, written out for stdnum, becomes more than one digit: "
         f"{counts['nondigit']}. Other differences: {len(counts['other'])}.",
-        f"- The same IBANs given to stdnum's whole `iban.validate`: the same answer on "
-        f"{full['same']}. It refuses, for a country code or BBAN format not in the SWIFT registry, "
-        f"{full['registry']} that pass this codec's check, which does not use the registry. Read "
-        f"after stdnum's normalizing: {full['normalized']}. Other differences: {len(full['other'])}.",
+        f"- The same IBANs given to stdnum's whole `iban.validate`, which checks the shape itself: "
+        f"the same answer on {full['same']}, of which {full['same_true']} pass both. It refuses, for "
+        f"a country code or BBAN format not in the SWIFT registry, {full['registry']} that pass this "
+        f"codec's check, which does not use the registry; and {full['national']} for one of its own "
+        f"national checks, such as a bank code missing from its list. Read after stdnum's "
+        f"normalizing: {full['normalized']}. Other differences: {len(full['other'])}.",
         "",
     ]
     lines += [f"- `{r[:100]}`: this project `{o}`, stdnum `{t}`"

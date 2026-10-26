@@ -153,6 +153,9 @@ MALFORMED = [
     ("ibancheck", "no arguments"),
     ("ibancheck 71,66", "no `;`"),
     ("ibancheck 71;66;1", "two `;`"),
+    ("ibancheck 71,x;66", "a number that is not decimal"),
+    ("ibancheck 71,66;55296", "a surrogate in the BBAN"),
+    ("ibancheck 55296,66;49", "a surrogate in the country code"),
     ("iban 71,55296", "a surrogate, not a character"),
     ("pemenc", "no arguments"),
     ("pemenc 88", "no `;` between the label and the data"),
@@ -392,12 +395,24 @@ def forged(country, bban):
     return country + f"{98 - iban_number(bban + country + '00') % 97:02d}" + bban
 
 
+def forged_check(country, check, bban):
+    """country, `check` in the check-digit places, and the BBAN with the
+    two digits after it that make the mod-97 sum pass whatever the
+    shape."""
+    for n in range(100):
+        if iban_number(bban + f"{n:02d}" + country + check) % 97 == 1:
+            return country + check + bban + f"{n:02d}"
+
+
 # Strings whose mod-97 sum passes but whose shape does not, and the
-# edges of the BBAN's length, so only the shape decides.
+# edges of the BBAN's length, so only the shape decides; and letters in
+# the check-digit places.
 IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
                     forged("GB", "nwbk1234"), forged("GB", ""), forged("GB", "A"),
                     forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
-                    forged("GB", "1" * 31), forged("ZZ", "Z" * 30)]
+                    forged("GB", "1" * 31), forged("ZZ", "Z" * 30),
+                    forged_check("GB", "A1", "NWBK1234"), forged_check("GB", "1A", "NWBK1234"),
+                    forged_check("GB", "AB", "NWBK1234"), forged_check("GB", "ZZ", "")]
 
 
 def random_iban(rng):
@@ -425,6 +440,20 @@ def mutate_iban(rng, text):
     if kind == 4:
         return text[:i] + rng.choice(IBAN_POOL) + text[i:]
     return text.lower() if rng.random() < 0.5 else text + rng.choice(IBAN_CHARS)
+
+
+def above_nine(rng, ds):
+    """`ds`, valid, with one digit d made d + 10 where the Luhn sum stays a
+    multiple of 10: at a place that is not doubled, or a doubled place
+    with d at least 5. So only the rule that every digit is 0 to 9
+    decides. `None` when no place qualifies."""
+    places = [i for i in range(len(ds))
+              if (len(ds) - 1 - i) % 2 == 0 or ds[i] >= 5]
+    if not places:
+        return None
+    out = list(ds)
+    out[rng.choice(places)] += 10
+    return out
 
 
 def mutate_digits(rng, ds):
@@ -538,17 +567,24 @@ def fixed_cases():
             items.append(("luhncheck", f"luhncheck {nums(ds)}", oracle_luhn_check(ds), None, False))
     # Country codes of the wrong length, which can still make a string of
     # the right shape with the BBAN: "GB1" with "2345" is "GB1002345".
+    # And country codes or BBANs of the wrong shape: an empty BBAN, one of
+    # 31 characters, lower case, a digit or a dash in the country code.
     for country, bban in [("GB1", "2345"), ("AB1", "2345"), ("G", "B2345"), ("", "GB2345"),
-                          ("GBR", "2345"), ("GB12", "345")]:
+                          ("GBR", "2345"), ("GB12", "345"), ("GB", ""), ("GB", "A" * 31),
+                          ("GB", "A" * 30), ("GB", "1"), ("gb", "NWBK1234"), ("GB", "nwbk1234"),
+                          ("G1", "2345"), ("1B", "2345"), ("G-", "2345"), ("GB", "NWBK-1234")]:
         items.append(("ibancheck", f"ibancheck {text_nums(country)};{text_nums(bban)}",
                       oracle_iban_check(country, bban), None, False))
     for text in IBAN_EXAMPLES + IBAN_SHAPE_EDGES:
         items.append(("iban", f"iban {text_nums(text)}", oracle_iban(text), None, False))
-    # Numbers above 9 are not digits, for `luhn`.
-    for ds in ([10], [1, 10], [5, 255, 0], [0, 0, 18], [9, 9, 10, 0]):
-        items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
         items.append(("ibancheck", f"ibancheck {text_nums(text[:2])};{text_nums(text[4:])}",
                       oracle_iban_check(text[:2], text[4:]), None, False))
+    # Numbers above 9 are not digits, for `luhn`; in the last five the sum
+    # is still a multiple of 10, at a place doubled and not.
+    for ds in ([10], [1, 10], [5, 255, 0], [0, 0, 18], [9, 9, 10, 0], [10, 9], [10, 0, 0],
+               [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 13], [7, 9, 9, 2, 7, 3, 9, 8, 17, 1, 3],
+               [7, 9, 9, 2, 7, 3, 9, 18, 7, 1, 3]):
+        items.append(("luhn", f"luhn {nums(ds)}", oracle_luhn(ds), None, False))
     # PEM: every label above with data at the line edges (48 bytes are
     # one full line), and every bad label.
     for label in PEM_LABELS + BAD_PEM_LABELS:
@@ -627,7 +663,12 @@ def cases(seed, count):
              oracle_iban_check(country, bban), None, False),
             ("iban", f"iban {text_nums(iban)}", oracle_iban(iban), None, False),
             ("iban", f"iban {text_nums(bad_iban)}", oracle_iban(bad_iban), None, True),
+            ("ibancheck", f"ibancheck {text_nums(bad_iban[:2])};{text_nums(bad_iban[4:])}",
+             oracle_iban_check(bad_iban[:2], bad_iban[4:]), None, True),
         ]
+        big = above_nine(rng, ds_valid)
+        if big is not None:
+            batch.append(("luhn", f"luhn {nums(big)}", oracle_luhn(big), None, True))
         label = rng.choice(PEM_LABELS + BAD_PEM_LABELS[:3])
         pem_data = data[: rng.choice([0, 1, 47, 48, 49, 96, 97, 200, len(data)])]
         batch.append(("pemenc", f"pemenc {text_nums(label)};{nums(pem_data)}",

@@ -479,6 +479,8 @@ theorem Spec.iban_vectors :
     Iban.valid "FR1420041010050500013M02606".toList = true ∧
     Iban.valid "NO9386011117947".toList = true ∧
     Iban.checkDigits "GB".toList "NWBK60161331926819".toList = some "29".toList ∧
+    Iban.checkDigits "DE".toList "370400440532013000".toList = some "89".toList ∧
+    Iban.checkDigits "FR".toList "20041010050500013M02606".toList = some "14".toList ∧
     Iban.checkDigits "NO".toList "86011117947".toList = some "93".toList ∧
     Iban.valid "GB29NWBK60161331926818".toList = false ∧
     Iban.valid "gb29NWBK60161331926819".toList = false ∧
