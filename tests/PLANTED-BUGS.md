@@ -47,7 +47,7 @@ against the changed tool. A bug is caught when they report failures.
 | m33_cr_only_output | `Main.lean` | 30007 |
 | m34_reject_nul_code_point | `Main.lean` | 104 |
 | m34b_nul_as_invalid_sentinel | `Main.lean` | 104 |
-| m35_no_eof_check | `Main.lean` | 3597826 |
+| m35_no_eof_check | `Main.lean` | 3599191 |
 | m36_no_arg_form_refused | `Main.lean` | 1 |
 | m37_chars_below_256_only | `Main.lean` | 784 |
 | m38_strip_cr_before_lf | `Main.lean` | 3 |
@@ -104,7 +104,7 @@ against the changed tool. A bug is caught when they report failures.
 | n42_trailing_space_every_answer | `Main.lean` | 30006 |
 | n43_trailing_space_on_error | `Main.lean` | 99 |
 | n44_blank_line_after_last | `Main.lean` | 7 |
-| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr. The tests compare stdout and the exit status, and neither they nor SPEC.md say anything about stderr. |
+| n45_stderr_note | `Main.lean` | 0, equivalent: It only adds a note on stderr, so stdout is the same on every input. The tests compare stdout and the exit status. They read stderr only to stop a tool that writes more than 1 MiB there, and on their requests these notes come to 2,945 bytes. SPEC.md says nothing about stderr. |
 | n46_exit_status_1 | `Main.lean` | 7 |
 | n47_bom_on_error_lines | `Main.lean` | 99 |
 | n48_minus_on_first_number | `Main.lean` | 1 |
