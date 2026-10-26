@@ -93,7 +93,8 @@ theorem Spec.base64_decode_encode (bs : List UInt8) :
 theorem Spec.base64_encode_decode (cs : List Char) (bs : List UInt8) :
     Base64.decode cs = some bs → Base64.encode bs = cs := sorry
 
-/-- The test vectors of RFC 4648, section 10. -/
+/-- The test vectors of RFC 4648, section 10: encoding gives them, and
+    decoding reads them back. -/
 theorem Spec.base64_rfc4648_vectors :
     Base64.encode (Spec.ascii "") = "".toList ∧
     Base64.encode (Spec.ascii "f") = "Zg==".toList ∧
@@ -101,7 +102,14 @@ theorem Spec.base64_rfc4648_vectors :
     Base64.encode (Spec.ascii "foo") = "Zm9v".toList ∧
     Base64.encode (Spec.ascii "foob") = "Zm9vYg==".toList ∧
     Base64.encode (Spec.ascii "fooba") = "Zm9vYmE=".toList ∧
-    Base64.encode (Spec.ascii "foobar") = "Zm9vYmFy".toList := sorry
+    Base64.encode (Spec.ascii "foobar") = "Zm9vYmFy".toList ∧
+    Base64.decode "".toList = some (Spec.ascii "") ∧
+    Base64.decode "Zg==".toList = some (Spec.ascii "f") ∧
+    Base64.decode "Zm8=".toList = some (Spec.ascii "fo") ∧
+    Base64.decode "Zm9v".toList = some (Spec.ascii "foo") ∧
+    Base64.decode "Zm9vYg==".toList = some (Spec.ascii "foob") ∧
+    Base64.decode "Zm9vYmE=".toList = some (Spec.ascii "fooba") ∧
+    Base64.decode "Zm9vYmFy".toList = some (Spec.ascii "foobar") := sorry
 
 /-! ## CRC-32
 
