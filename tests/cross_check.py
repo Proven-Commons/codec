@@ -73,7 +73,8 @@ def check_digit_section(args):
     from stdnum.iso7064 import mod_97_10
     items = [(label, req) for label, req, _, _, _ in run_tests.cases(args.seed, args.count)
              if label in ("luhn", "luhncheck", "iban", "ibancheck")]
-    ours, problem = run_tests.run_tool("".join(req + "\n" for _, req in items))
+    ours = []
+    problem = run_tests.run_tool((req + "\n" for _, req in items), ours.append)
     if problem or len(ours) != len(items):
         sys.exit(f"the tool failed: {problem}")
 
@@ -177,7 +178,8 @@ def run_tests_nums(req):
 def pem_section(args, version):
     items = [(label, req, want) for label, req, want, _, _ in run_tests.cases(args.seed, args.count)
              if label in ("pemenc", "pemdec")]
-    ours, problem = run_tests.run_tool("".join(req + "\n" for _, req, _ in items))
+    ours = []
+    problem = run_tests.run_tool((req + "\n" for _, req, _ in items), ours.append)
     if problem or len(ours) != len(items):
         sys.exit(f"the tool failed: {problem}")
     subprocess.run(["go", "build", "-o", str(BUILD / "go-pem"), "pem.go"], cwd=HELPERS,
@@ -250,7 +252,8 @@ def main():
         sys.exit("lake build codec failed:\n" + build.stdout + build.stderr)
     reqs = [req for label, req, _, _, _ in run_tests.cases(args.seed, args.count)
             if label == "pctdec"]
-    ours, problem = run_tests.run_tool("".join(r + "\n" for r in reqs))
+    ours = []
+    problem = run_tests.run_tool((r + "\n" for r in reqs), ours.append)
     if problem or len(ours) != len(reqs):
         sys.exit(f"the tool failed: {problem}")
     BUILD.mkdir(parents=True, exist_ok=True)

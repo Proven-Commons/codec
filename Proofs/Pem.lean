@@ -231,9 +231,15 @@ theorem Spec.pem_vectors :
     Pem.decode "-----BEGIN X-----\nAA== \n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X----- \nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\n\nAA==\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\n\n-----END X-----\n".toList = none ∧
+    Pem.decode "-----BEGIN X-----\r\n\r\n-----END X-----\r\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\nProc-Type: 4,ENCRYPTED\nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "text\n-----BEGIN X-----\nAA==\n-----END X-----\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----\n\n".toList = none ∧
+    Pem.decode ("-----BEGIN X-----\nAA==\n-----END X-----\n".toList ++
+      "-----BEGIN X-----\nAA==\n-----END X-----\n".toList) = none ∧
+    Pem.decode ("-----BEGIN X-----\r\nAA==\r\n-----END X-----\r\n".toList ++
+      "-----BEGIN X-----\r\nAA==\r\n-----END X-----\r\n".toList) = none ∧
     Pem.decode "-----BEGIN X-----\nAB==\n-----END X-----\n".toList = none ∧
     Pem.decode ("-----BEGIN X-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAA\n".toList ++
       "-----END X-----\n".toList) = none := by

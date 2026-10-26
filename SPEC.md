@@ -86,7 +86,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | Base 64 encodes a final one or two bytes with zero fill and `==` or `=` padding. | `Spec.base64_encode_one`, `Spec.base64_encode_two` |
 | Base 64 decoding gives back what was encoded. | `Spec.base64_decode_encode` |
 | Base 64 decoding accepts exactly the encodings and nothing else. | `Spec.base64_encode_decode` |
-| Base 64 encoding matches the test vectors of RFC 4648, section 10. | `Spec.base64_rfc4648_vectors` |
+| Base 64 matches the test vectors of RFC 4648, section 10, and decodes them. | `Spec.base64_rfc4648_vectors` |
 | The table-driven CRC-32 equals the bit-at-a-time definition. | `Spec.crc32_eq` |
 | The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Spec.crc32_check` |
 | A frame is the message followed by its CRC-32, low byte first. | `Spec.frame_layout` |
