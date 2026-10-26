@@ -2,7 +2,8 @@
 """Differential tests: the Lean codecs against Python's own.
 
 The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
-`base64.b64encode` and strict `binascii.a2b_base64`, and `zlib.crc32`.
+`base64.b64encode` and strict `binascii.a2b_base64`, `base64.b32encode`
+and `base64.b32decode`, and `zlib.crc32`.
 Inputs come from a recorded seed:
 
 - random byte strings, encoded, decoded, checksummed and framed;
@@ -19,9 +20,12 @@ and Python's strict mode is less so. Python decodes text whose unused
 bits before the padding are not zero, and Python 3.11, and 3.12 before
 3.12.4, also decode padding after a whole group, such as `Zm9v=`
 (CPython issue gh-118314). Each such case is checked to be exactly one
-of the two, by re-encoding what Python decoded, and counted. Any other
-case where Python decodes text that does not re-encode to itself is
-compared as usual, and fails.
+of the two, by re-encoding what Python decoded, and counted. The same
+unused bits difference applies to base 32: Python's `base64.b32decode`
+decodes text whose unused bits before the padding are not zero, which
+the strict Lean decoder rejects. Those cases are checked the same way
+and counted separately. Any other case where Python decodes text that
+does not re-encode to itself is compared as usual, and fails.
 
     python3 tests/run_tests.py [--seed N] [--count N]
 
@@ -51,6 +55,8 @@ BUILD_TIMEOUT = 3600
 
 PADDING_BITS = "unused bits before the padding not zero"
 EXTRA_PADDING = "padding after a whole group, which Python 3.11 and 3.12 before 3.12.4 decode"
+PADDING_BITS_B32 = "base 32 unused bits before the padding not zero"
+EXTRA_PADDING_B32 = "base 32 padding after a whole group, which Python decodes"
 
 
 def nums(values):
@@ -126,6 +132,7 @@ MALFORMED = [
     ("hexenc 256", "a byte above 255"),
     ("hexenc 0,511", "a byte above 255"),
     ("b64enc 1,256", "a byte above 255"),
+    ("b32enc 1,256", "a byte above 255"),
     ("crc 1,256", "a byte above 255"),
     ("frame 0,256", "a byte above 255"),
     ("unframe 0,1,2,300", "a byte above 255"),
@@ -134,14 +141,17 @@ MALFORMED = [
     ("crc 1,18446744073709551617", "a byte of 2^64 + 1, which wraps to 1"),
     ("hexdec 48,55296", "a surrogate, not a character"),
     ("b64dec 90,103,61,57343", "a surrogate, not a character"),
+    ("b32dec 77,89,61,61,61,61,61,57343", "a surrogate, not a character"),
     ("hexdec 48,1114112", "beyond Unicode"),
     ("hexdec 48,2097201", "2^21 + 49, which wraps at 21 bits to a digit"),
     ("hexdec 55357,56385", "a UTF-16 surrogate pair, not a character"),
     ("b64dec 90,103,61,99999999999999999999", "beyond Unicode"),
     (f"hexdec {wrapped('01', 32)}", "code points that wrap at 2^32 to digits"),
     (f"b64dec {wrapped('Zm8=', 32)}", "code points that wrap at 2^32 to base 64"),
+    (f"b32dec {wrapped('MZXQ====', 32)}", "code points that wrap at 2^32 to base 32"),
     (f"hexdec {wrapped('01', 64)}", "code points that wrap at 2^64 to digits"),
     (f"b64dec {wrapped('Zm8=', 64)}", "code points that wrap at 2^64 to base 64"),
+    (f"b32dec {wrapped('MZXQ====', 64)}", "code points that wrap at 2^64 to base 32"),
     ("hexenc 1" + "0" * 100 + "1", "a number with a hundred digits"),
     ("crc 1,1" + "0" * 100 + "1", "a number with a hundred digits"),
 ]
@@ -186,6 +196,17 @@ def oracle_b64decode(text):
         return None
 
 
+def oracle_b32decode(text):
+    try:
+        raw = text.encode("ascii")
+    except UnicodeEncodeError:
+        return None
+    try:
+        return base64.b32decode(raw)
+    except binascii.Error:
+        return None
+
+
 def oracle_unframe(fr):
     if len(fr) < 4:
         return None
@@ -208,8 +229,25 @@ def b64_difference(text, py):
     return None
 
 
+def b32_difference(text, py):
+    """Why Python decoded `text` to `py` though strict decoding rejects
+    it: one of the known differences, or None."""
+    canon = base64.b32encode(py).decode()
+    if canon == text:
+        return None
+    core, text_core = canon.rstrip("="), text.rstrip("=")
+    if (len(canon) == len(text) and canon != core and len(core) == len(text_core)
+            and core[:-1] == text_core[:-1]):
+        return PADDING_BITS_B32
+    if canon == core and text.startswith(canon) and set(text[len(canon):]) == {"="}:
+        return EXTRA_PADDING_B32
+    return None
+
+
 POOL = "AZaz09+/=GgQw-_ .\n\xe9İŁ\U00010030\U0001f441"
 B64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+POOL32 = "AZ27=GgQw-_ .\n\xe9İŁ\U00010030\U0001f441"
+B32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 
 
 def mutate_text(rng, text):
@@ -235,6 +273,29 @@ def mutate_text(rng, text):
     core = text.rstrip("=")
     if core:
         return core[:-1] + rng.choice(B64_ALPHABET) + text[len(core):]
+    return text
+
+
+def mutate_text_b32(rng, text):
+    """One random mutation of a base 32 encoding."""
+    kind = rng.randrange(7)
+    i = rng.randrange(len(text) + 1)
+    if kind == 0 and text:
+        return text[:i % len(text)] + rng.choice(POOL32) + text[i % len(text) + 1:]
+    if kind == 1:
+        return text[:i] + rng.choice(POOL32) + text[i:]
+    if kind == 2 and text:
+        return text[:i % len(text)] + text[i % len(text) + 1:]
+    if kind == 3:
+        return text.swapcase()
+    if kind == 4:
+        return text.rstrip("=") + "=" * rng.randrange(9)
+    if kind == 5 and text:
+        j = i % len(text)
+        return text[:j] + chr(ord(text[j]) + rng.choice([0x100, 0x10000, 0x100000])) + text[j + 1:]
+    core = text.rstrip("=")
+    if core:
+        return core[:-1] + rng.choice(B32_ALPHABET) + text[len(core):]
     return text
 
 
@@ -268,6 +329,8 @@ def fixed_cases():
                       None, False))
         items.append(("b64dec", f"b64dec {text_nums(c * 4)}", decoded(oracle_b64decode(c * 4)),
                       None, False))
+        items.append(("b32dec", f"b32dec {text_nums(c * 8)}", decoded(oracle_b32decode(c * 8)),
+                      None, False))
     items += [(label, req, want, None, False) for label, req, want in UNUSUAL]
     return items
 
@@ -283,6 +346,7 @@ def cases(seed, count):
         data = rng.randbytes(n)
         hex_text = binascii.hexlify(data).decode()
         b64_text = base64.b64encode(data).decode()
+        b32_text = base64.b32encode(data).decode()
         frame = data + zlib.crc32(data).to_bytes(4, "little")
         batch = [
             ("hexenc", f"hexenc {nums(data)}", hex_text, None, False),
@@ -290,6 +354,8 @@ def cases(seed, count):
             ("hexdec", f"hexdec {text_nums(hex_text.upper())}", decoded(data), None, False),
             ("b64enc", f"b64enc {nums(data)}", b64_text, None, False),
             ("b64dec", f"b64dec {text_nums(b64_text)}", decoded(data), None, False),
+            ("b32enc", f"b32enc {nums(data)}", b32_text, None, False),
+            ("b32dec", f"b32dec {text_nums(b32_text)}", decoded(data), None, False),
             ("crc", f"crc {nums(data)}", str(zlib.crc32(data)), None, False),
             ("frame", f"frame {nums(data)}", nums(frame), None, False),
             ("unframe", f"unframe {nums(frame)}", decoded(data), None, False),
@@ -301,6 +367,11 @@ def cases(seed, count):
         why = None if py is None else b64_difference(bad_b64, py)
         want = "none" if why else decoded(py)
         batch.append(("b64dec", f"b64dec {text_nums(bad_b64)}", want, why, True))
+        bad_b32 = changed(mutate_text_b32, rng, b32_text)
+        py32 = oracle_b32decode(bad_b32)
+        why32 = None if py32 is None else b32_difference(bad_b32, py32)
+        want32 = "none" if why32 else decoded(py32)
+        batch.append(("b32dec", f"b32dec {text_nums(bad_b32)}", want32, why32, True))
         bad_frame = changed(mutate_bytes, rng, frame)
         batch.append(("unframe", f"unframe {nums(bad_frame)}", decoded(oracle_unframe(bad_frame)), None, True))
         batch = batch[: count - made]
@@ -437,6 +508,8 @@ def main():
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
     pad_bits = sum(1 for item in items if item[3] == PADDING_BITS)
     extra_pad = sum(1 for item in items if item[3] == EXTRA_PADDING)
+    pad_bits_b32 = sum(1 for item in items if item[3] == PADDING_BITS_B32)
+    extra_pad_b32 = sum(1 for item in items if item[3] == EXTRA_PADDING_B32)
 
     lines = [
         "# Test results",
@@ -453,6 +526,8 @@ def main():
         f"- Last lines with no LF, sent alone, answered right: {eof_right} of {len(AT_EOF)}",
         f"- Strict base 64 rejections where Python decodes: {pad_bits + extra_pad} "
         f"({pad_bits} with {PADDING_BITS}, {extra_pad} with {EXTRA_PADDING})",
+        f"- Strict base 32 rejections where Python decodes: {pad_bits_b32 + extra_pad_b32} "
+        f"({pad_bits_b32} with {PADDING_BITS_B32}, {extra_pad_b32} with {EXTRA_PADDING_B32})",
         f"- Failures: {len(failures)}",
         "",
     ]
