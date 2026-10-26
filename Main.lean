@@ -12,6 +12,8 @@
     crc 49,50,51          prints  the CRC-32 as a decimal number
     frame 1,2             prints  the framed bytes
     unframe 1,2,3,4,5     prints  ok:... (or none)
+    pctenc 32,65          prints  %20A
+    pctdec 37,50,48,65    prints  ok:32,65   (or none)
 
   A request is an operation, then optionally one space and its numbers;
   with no numbers after the space, the input is empty. A malformed
@@ -62,6 +64,8 @@ def answer (op : String) (ns : List Nat) : Option String := do
   | "crc" => return toString (Crc32.crc32 (← toBytes ns)).toNat
   | "frame" => return showBytes (Crc32.frame (← toBytes ns))
   | "unframe" => return result (Crc32.unframe (← toBytes ns))
+  | "pctenc" => return String.ofList (Percent.encode (← toBytes ns))
+  | "pctdec" => return result (Percent.decode (← toChars ns))
   | _ => none
 
 /-- The answer to one line: an operation, then optionally one space and

@@ -1,6 +1,6 @@
 # Specification: codec
 
-Three small codecs: hex, base 64, and CRC-32 with a frame around a message. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
+Four small codecs: hex, base 64, CRC-32 with a frame around a message, and percent-encoding. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
 
 Bytes are `List UInt8` and text is `List Char`. The command-line tool converts at the edges.
 
@@ -25,6 +25,15 @@ Scope: the CRC-32 of ISO 3309, ITU-T V.42, and RFC 1952 (gzip, zip, PNG). The re
 - `crc32` computes it with a 256-entry table, a byte at a time.
 - `frame` appends the CRC-32 of a message to it, low byte first, as gzip stores it.
 - `unframe` returns the message when the last four bytes of its input are the message's CRC-32, and fails otherwise.
+
+## Percent-encoding
+
+Scope: RFC 3986, section 2.1: a byte written as `%` and two hex digits.
+
+- Encoding keeps the unreserved characters of section 2.3 (`A` to `Z`, `a` to `z`, `0` to `9`, `-`, `.`, `_` and `~`) as they are, and writes every other byte as `%` and two uppercase hex digits, the high half first. The RFC asks producers for both: uppercase digits (section 2.1), and no percent-encoding of unreserved characters (section 2.3). So the encoder's output is already in the normal form of sections 6.2.2.1 (uppercase digits) and 6.2.2.2 (unreserved characters not encoded).
+- Decoding reads `%` and two hex digits, in either case, as the byte they spell, and any other US-ASCII character but `%` as its own code. It does not check which characters a URI allows: a space, a control character or `{` reads as itself. It fails on a `%` without two hex digits after it, and on any character outside US-ASCII. It decodes once (section 2.4): `%252E` decodes to the text `%2E`, not to a dot.
+
+Decoders differ on bad escapes. Go's `url.PathUnescape` returns an error, as this one does. Python's `urllib.parse.unquote` passes them through as text.
 
 ## Valid inputs and errors
 
@@ -53,9 +62,13 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | A frame is the message followed by its CRC-32, low byte first. | `Spec.frame_layout` |
 | Unframing a frame gives back the message. | `Spec.unframe_frame` |
 | Unframing accepts nothing that is not a frame. | `Spec.frame_unframe` |
+| Percent-encoding writes each byte as `Spec.pctByte` says: an unreserved character as itself, any other byte as `%` and two uppercase digits. | `Spec.percent_encode_eq` |
+| Percent-decoding reads exactly what `Spec.PctReads` allows, as it says. | `Spec.percent_decode_iff` |
+| Percent-decoding gives back what was encoded. | `Spec.percent_decode_encode` |
+| The examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2; the reserved and unreserved characters; decoding once; and text the decoder refuses. | `Spec.percent_vectors` |
 
-Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each decoder and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. A function that did nothing, or that accepted too much, would fail at least one of them.
+Together these fix every output. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. A function that did nothing, or that accepted too much, would fail at least one of them.
 
 ## Oracle
 
-Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, and `zlib.crc32`.
+Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest.

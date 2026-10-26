@@ -2,8 +2,13 @@
 """Differential tests: the Lean codecs against Python's own.
 
 The oracles are Python's `binascii.hexlify` and `binascii.unhexlify`,
-`base64.b64encode` and strict `binascii.a2b_base64`, and `zlib.crc32`.
-Inputs come from a recorded seed:
+`base64.b64encode` and strict `binascii.a2b_base64`, `zlib.crc32`, and
+for percent-encoding `urllib.parse.quote` with no safe characters and
+`urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape
+through as text, where RFC 3986 has none, so text is first checked
+against what `Spec.PctReads` accepts, as a regular expression, and only
+text that matches is given to it; the rest must be refused. Inputs come from
+a recorded seed:
 
 - random byte strings, encoded, decoded, checksummed and framed;
 - mutations of valid encodings and frames: a character replaced,
@@ -35,9 +40,11 @@ import binascii
 import itertools
 import platform
 import random
+import re
 import subprocess
 import sys
 import threading
+import urllib.parse
 import zlib
 from pathlib import Path
 
@@ -135,6 +142,8 @@ MALFORMED = [
     ("hexdec 48,55296", "a surrogate, not a character"),
     ("b64dec 90,103,61,57343", "a surrogate, not a character"),
     ("hexdec 48,1114112", "beyond Unicode"),
+    ("pctenc 37,256", "a byte above 255"),
+    ("pctdec 37,55296", "a surrogate, not a character"),
     ("hexdec 48,2097201", "2^21 + 49, which wraps at 21 bits to a digit"),
     ("hexdec 55357,56385", "a UTF-16 surrogate pair, not a character"),
     ("b64dec 90,103,61,99999999999999999999", "beyond Unicode"),
@@ -184,6 +193,44 @@ def oracle_b64decode(text):
         return binascii.a2b_base64(raw, strict_mode=True)
     except binascii.Error:
         return None
+
+
+# What `Spec.PctReads` accepts, as a regular expression: each piece is `%`
+# and two hex digits (the `pct-encoded` rule of RFC 3986, section 2.1),
+# or a US-ASCII character other than `%`.
+PCT_TEXT = re.compile(r"(?:%[0-9A-Fa-f]{2}|[\x00-\x24\x26-\x7f])*")
+
+
+def oracle_pctenc(data):
+    return urllib.parse.quote(data, safe="")
+
+
+def oracle_pctdec(text):
+    if not PCT_TEXT.fullmatch(text):
+        return None
+    return urllib.parse.unquote_to_bytes(text)
+
+
+def lower_escapes(text):
+    return re.sub(r"%[0-9A-F]{2}", lambda m: m.group().lower(), text)
+
+
+PCT_POOL = "%%%0123456789abcdefABCDEFgG/+ ~.-_?#\x00\x7f\x80\xe9\u0100\U0001f441"
+
+
+def mutate_pct(rng, text):
+    """One random mutation of percent-encoded text."""
+    kind = rng.randrange(5)
+    i = rng.randrange(len(text) + 1)
+    if kind == 0 and text:
+        return text[:i % len(text)] + rng.choice(PCT_POOL) + text[i % len(text) + 1:]
+    if kind == 1:
+        return text[:i] + rng.choice(PCT_POOL) + text[i:]
+    if kind == 2 and text:
+        return text[:i % len(text)] + text[i % len(text) + 1:]
+    if kind == 3:
+        return text.swapcase()
+    return text[:i] + "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(1, 4))) + text[i:]
 
 
 def oracle_unframe(fr):
@@ -268,6 +315,21 @@ def fixed_cases():
                       None, False))
         items.append(("b64dec", f"b64dec {text_nums(c * 4)}", decoded(oracle_b64decode(c * 4)),
                       None, False))
+        for text in (c, "%4" + c, "%" + c + "1", "a" + c + "%41"):
+            items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)),
+                          None, False))
+    # Every byte alone, and every one-character text: the whole of the
+    # encoder's and the decoder's per-character rules.
+    for b in range(256):
+        items.append(("pctenc", f"pctenc {b}", oracle_pctenc(bytes([b])), None, False))
+    for c in range(128):
+        text = chr(c)
+        items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)), None, False))
+    for hi in range(128):
+        for lo in "0aF":
+            text = "%" + chr(hi) + lo
+            items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)),
+                          None, False))
     items += [(label, req, want, None, False) for label, req, want in UNUSUAL]
     return items
 
@@ -303,6 +365,19 @@ def cases(seed, count):
         batch.append(("b64dec", f"b64dec {text_nums(bad_b64)}", want, why, True))
         bad_frame = changed(mutate_bytes, rng, frame)
         batch.append(("unframe", f"unframe {nums(bad_frame)}", decoded(oracle_unframe(bad_frame)), None, True))
+        pct_text = oracle_pctenc(data)
+        batch += [
+            ("pctenc", f"pctenc {nums(data)}", pct_text, None, False),
+            ("pctdec", f"pctdec {text_nums(pct_text)}", decoded(data), None, False),
+            ("pctdec", f"pctdec {text_nums(lower_escapes(pct_text))}", decoded(data), None, False),
+            # Encoded twice, it decodes once: to the first encoding.
+            ("pctdec", f"pctdec {text_nums(oracle_pctenc(pct_text.encode()))}",
+             decoded(pct_text.encode()), None, False),
+        ]
+        bad_pct = changed(mutate_pct, rng, pct_text)
+        batch.append(("pctdec", f"pctdec {text_nums(bad_pct)}", decoded(oracle_pctdec(bad_pct)), None, True))
+        raw = "".join(rng.choice(PCT_POOL) for _ in range(rng.randrange(8)))
+        batch.append(("pctdec", f"pctdec {text_nums(raw)}", decoded(oracle_pctdec(raw)), None, False))
         batch = batch[: count - made]
         yield from batch
         made += len(batch)
@@ -312,9 +387,10 @@ def run_tool(data, timeout=TIMEOUT):
     """The tool's answer lines for `data`, and a note on how the run
     failed, or None. Lines end in LF only; the output is read as bytes,
     so a CR left in a line fails the comparison. No right answer is
-    longer than its request plus 16 bytes, so a tool that writes more
-    than twice its input and 64 bytes a line is stopped, not read until
-    memory runs out."""
+    longer than one and a half times its request plus 16 bytes (`pctenc`
+    writes three characters for a byte the request can give in two,
+    such as "0,"), so a tool that writes more than twice its input and
+    64 bytes a line is stopped, not read until memory runs out."""
     raw = data.encode("utf-8")
     limit = 2 * len(raw) + 64 * (data.count("\n") + 1)
     try:
@@ -369,7 +445,7 @@ def run_tool(data, timeout=TIMEOUT):
 
 def oracle():
     return (f"Python {platform.python_version()} `binascii`, `base64`, `zlib` "
-            f"(zlib {zlib.ZLIB_RUNTIME_VERSION})")
+            f"(zlib {zlib.ZLIB_RUNTIME_VERSION}), `urllib.parse`")
 
 
 def lean_version():
