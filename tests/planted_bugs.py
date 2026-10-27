@@ -593,6 +593,22 @@ BUGS = [
      "def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'",
      "def isUpper (c : Char) : Bool := 'A' ≤ c.toUpper && c.toUpper ≤ 'Z'",
      None),
+    ('c18_iban_is_digit_from_slash', "Codec/Iban.lean",
+     "def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ '9'",
+     "def isDigit (c : Char) : Bool := '/' ≤ c && c ≤ '9'",
+     None),
+    ('c19_iban_is_digit_to_colon', "Codec/Iban.lean",
+     "def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ '9'",
+     "def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ ':'",
+     None),
+    ('c20_iban_is_upper_from_at', "Codec/Iban.lean",
+     "def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'",
+     "def isUpper (c : Char) : Bool := '@' ≤ c && c ≤ 'Z'",
+     None),
+    ('c21_iban_is_upper_to_bracket', "Codec/Iban.lean",
+     "def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'",
+     "def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ '['",
+     None),
 ]
 
 

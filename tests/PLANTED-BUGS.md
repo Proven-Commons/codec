@@ -9,14 +9,14 @@ against the changed tool. A bug is caught when they report failures.
 | m01_bytes_mod_512 | `Main.lean` | 9 |
 | m02_underscores | `Main.lean` | 1 |
 | m03_invalid_cp_to_fffd | `Main.lean` | 12 |
-| m04_drop_last_number | `Main.lean` | 20221 |
+| m04_drop_last_number | `Main.lean` | 20051 |
 | m05_trailing_comma | `Main.lean` | 1 |
 | m06_case_insensitive_op | `Main.lean` | 2 |
 | m07_tab_separator | `Main.lean` | 1 |
 | m08_uint64_parser_nocap | `Main.lean` | 11 |
 | m08b_uint64_parser_cap | `Main.lean` | 0, equivalent: The cap leaves at most seven digits after the leading zeros. So the value is below 10,000,000, and a UInt64 cannot overflow. |
-| m09_cp_mod_256 | `Main.lean` | 561 |
-| m10_cp_mod_65536 | `Main.lean` | 262 |
+| m09_cp_mod_256 | `Main.lean` | 541 |
+| m10_cp_mod_65536 | `Main.lean` | 243 |
 | m11a_cp_via_uint32_cap | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the trip through UInt32 changes nothing. |
 | m11b_cp_via_uint32_nocap | `Main.lean` | 11 |
 | m12_hexenc_unchecked | `Main.lean` | 3 |
@@ -33,30 +33,30 @@ against the changed tool. A bug is caught when they report failures.
 | m21_chomp_strips_mid_cr | `Main.lean` | 4 |
 | m22_cap_counts_leading_zeros | `Main.lean` | 3 |
 | m22b_cap_32_chars_with_zeros | `Main.lean` | 5 |
-| m23_cap_6 | `Main.lean` | 120 |
+| m23_cap_6 | `Main.lean` | 110 |
 | m24_no_cap | `Main.lean` | 5 |
 | m25_accept_surrogates | `Main.lean` | 9 |
 | m26_accept_0x110000 | `Main.lean` | 2 |
 | m27_accept_trailing_space | `Main.lean` | 3 |
-| m28r_reject_empty_arg | `Main.lean` | 1315 |
-| m29_swap_hexenc_b64enc | `Main.lean` | 1522 |
-| m29b_swap_frame_unframe | `Main.lean` | 2550 |
-| m30_hexenc_uppercase | `Main.lean` | 686 |
+| m28r_reject_empty_arg | `Main.lean` | 1382 |
+| m29_swap_hexenc_b64enc | `Main.lean` | 1508 |
+| m29b_swap_frame_unframe | `Main.lean` | 2547 |
+| m30_hexenc_uppercase | `Main.lean` | 677 |
 | m31_trim_each_number | `Main.lean` | 4 |
 | m32_crlf_output | `Main.lean` | 30006 |
 | m33_cr_only_output | `Main.lean` | 30007 |
-| m34_reject_nul_code_point | `Main.lean` | 104 |
-| m34b_nul_as_invalid_sentinel | `Main.lean` | 104 |
-| m35_no_eof_check | `Main.lean` | 3599191 |
+| m34_reject_nul_code_point | `Main.lean` | 99 |
+| m34b_nul_as_invalid_sentinel | `Main.lean` | 99 |
+| m35_no_eof_check | `Main.lean` | 3655836 |
 | m36_no_arg_form_refused | `Main.lean` | 1 |
-| m37_chars_below_256_only | `Main.lean` | 784 |
+| m37_chars_below_256_only | `Main.lean` | 753 |
 | m38_strip_cr_before_lf | `Main.lean` | 3 |
-| m39_showbytes_comma_space | `Main.lean` | 7764 |
-| m40_swap_hexdec_b64dec | `Main.lean` | 2591 |
+| m39_showbytes_comma_space | `Main.lean` | 7699 |
+| m40_swap_hexdec_b64dec | `Main.lean` | 2565 |
 | m41_unchecked_chars_b64dec | `Main.lean` | 1 |
 | m42_unchecked_chars_hexdec | `Main.lean` | 4 |
 | m43_cr_as_separator | `Main.lean` | 1 |
-| m44_parse_after_zero_strip | `Main.lean` | 4073 |
+| m44_parse_after_zero_strip | `Main.lean` | 4077 |
 | m45_toInt_nonneg | `Main.lean` | 8 |
 | m45b_toInt_nonneg_cap | `Main.lean` | 3 |
 | m45c_minus_sign_then_nonneg | `Main.lean` | 2 |
@@ -66,7 +66,7 @@ against the changed tool. A bug is caught when they report failures.
 | n04_chomp_nel_before_lf | `Main.lean` | 1 |
 | n05_chomp_ls_ps_before_lf | `Main.lean` | 2 |
 | n06_unicode_eol_at_eof | `Main.lean` | 1 |
-| n07_ls_splits_requests | `Main.lean` | 24009 |
+| n07_ls_splits_requests | `Main.lean` | 23969 |
 | n08_chomp_ff_fs_gs_rs_before_lf | `Main.lean` | 2 |
 | n09_chomp_filter_all_lf | `Main.lean` | 0, equivalent: A line from getLine holds at most one LF, at its end. So removing every LF removes just that one. |
 | n10_leading_bom_dropped | `Main.lean` | 2 |
@@ -85,7 +85,7 @@ against the changed tool. A bug is caught when they report failures.
 | n23_cap_8 | `Main.lean` | 4 |
 | n24_cap_ignores_all_zeros | `Main.lean` | 4 |
 | n25_cap_takewhile_zeros | `Main.lean` | 7 |
-| n26_zero_refused | `Main.lean` | 4073 |
+| n26_zero_refused | `Main.lean` | 4077 |
 | n27_bytes_le_256 | `Main.lean` | 7 |
 | n28_bytes_via_uint16 | `Main.lean` | 1 |
 | n29_bytes_via_uint32 | `Main.lean` | 0, equivalent: The cap keeps every value below 10,000,000, which is below 2^32. So the value never wraps. |
@@ -97,7 +97,7 @@ against the changed tool. A bug is caught when they report failures.
 | n35_D7FF_refused | `Main.lean` | 7 |
 | n36_E000_refused | `Main.lean` | 7 |
 | n37_surrogate_pairs_combined | `Main.lean` | 1 |
-| n38_c0_controls_refused | `Main.lean` | 1929 |
+| n38_c0_controls_refused | `Main.lean` | 1925 |
 | n39_noncharacters_refused | `Main.lean` | 15 |
 | n40_no_lf_on_last_answer | `Main.lean` | 7 |
 | n41_bom_before_output | `Main.lean` | 7 |
@@ -109,40 +109,44 @@ against the changed tool. A bug is caught when they report failures.
 | n47_bom_on_error_lines | `Main.lean` | 99 |
 | n48_minus_on_first_number | `Main.lean` | 1 |
 | n49_bom_on_first_line_only | `Main.lean` | 1 |
-| p01_lowercase_digits | `Codec/Percent.lean` | 805 |
-| p02_tilde_encoded | `Codec/Percent.lean` | 99 |
-| p03_asterisk_kept | `Codec/Percent.lean` | 97 |
-| p04_non_ascii_low_byte | `Codec/Percent.lean` | 240 |
-| p05_cut_short_escape_passed_through | `Codec/Percent.lean` | 101 |
-| p06_digits_low_half_first | `Codec/Percent.lean` | 2675 |
-| p07_space_refused | `Codec/Percent.lean` | 45 |
-| p08_bad_digit_escape_passed_through | `Codec/Percent.lean` | 515 |
-| q01_lines_of_76 | `Codec/Pem.lean` | 259 |
-| q02_end_label_not_compared | `Codec/Pem.lean` | 150 |
-| q03_lone_cr_not_a_line_end | `Codec/Pem.lean` | 499 |
+| p01_lowercase_digits | `Codec/Percent.lean` | 801 |
+| p02_tilde_encoded | `Codec/Percent.lean` | 95 |
+| p03_asterisk_kept | `Codec/Percent.lean` | 95 |
+| p04_non_ascii_low_byte | `Codec/Percent.lean` | 262 |
+| p05_cut_short_escape_passed_through | `Codec/Percent.lean` | 109 |
+| p06_digits_low_half_first | `Codec/Percent.lean` | 2654 |
+| p07_space_refused | `Codec/Percent.lean` | 46 |
+| p08_bad_digit_escape_passed_through | `Codec/Percent.lean` | 505 |
+| q01_lines_of_76 | `Codec/Pem.lean` | 246 |
+| q02_end_label_not_compared | `Codec/Pem.lean` | 142 |
+| q03_lone_cr_not_a_line_end | `Codec/Pem.lean` | 490 |
 | q04_line_lengths_not_checked | `Codec/Pem.lean` | 23 |
-| q05_two_separators_in_label | `Codec/Pem.lean` | 197 |
-| q06_crlf_written | `Codec/Pem.lean` | 883 |
-| q07_empty_lines_skipped | `Codec/Pem.lean` | 54 |
-| q08_begin_end_words_not_checked | `Codec/Pem.lean` | 41 |
-| q09_comma_refused_in_label | `Codec/Pem.lean` | 221 |
-| c01_luhn_carry_dropped | `Codec/Luhn.lean` | 2527 |
-| c02_luhn_doubling_from_check_digit | `Codec/Luhn.lean` | 2804 |
-| c03_luhn_check_digit_place_left_out | `Codec/Luhn.lean` | 1723 |
-| c04_luhn_digits_above_9 | `Codec/Luhn.lean` | 856 |
-| c05_luhn_above_9_in_check_digit | `Codec/Luhn.lean` | 159 |
-| c06_iban_letters_as_one_digit | `Codec/Iban.lean` | 2409 |
-| c07_iban_not_rearranged | `Codec/Iban.lean` | 862 |
+| q05_two_separators_in_label | `Codec/Pem.lean` | 199 |
+| q06_crlf_written | `Codec/Pem.lean` | 880 |
+| q07_empty_lines_skipped | `Codec/Pem.lean` | 61 |
+| q08_begin_end_words_not_checked | `Codec/Pem.lean` | 44 |
+| q09_comma_refused_in_label | `Codec/Pem.lean` | 231 |
+| c01_luhn_carry_dropped | `Codec/Luhn.lean` | 2524 |
+| c02_luhn_doubling_from_check_digit | `Codec/Luhn.lean` | 2821 |
+| c03_luhn_check_digit_place_left_out | `Codec/Luhn.lean` | 1729 |
+| c04_luhn_digits_above_9 | `Codec/Luhn.lean` | 855 |
+| c05_luhn_above_9_in_check_digit | `Codec/Luhn.lean` | 158 |
+| c06_iban_letters_as_one_digit | `Codec/Iban.lean` | 2384 |
+| c07_iban_not_rearranged | `Codec/Iban.lean` | 858 |
 | c08_iban_bban_of_31 | `Codec/Iban.lean` | 10 |
-| c09_iban_empty_bban | `Codec/Iban.lean` | 8 |
-| c10_iban_second_country_letter_unchecked | `Codec/Iban.lean` | 38 |
-| c11_iban_bban_characters_unchecked | `Codec/Iban.lean` | 39 |
-| c12_iban_check_digits_from_97 | `Codec/Iban.lean` | 1557 |
+| c09_iban_empty_bban | `Codec/Iban.lean` | 7 |
+| c10_iban_second_country_letter_unchecked | `Codec/Iban.lean` | 50 |
+| c11_iban_bban_characters_unchecked | `Codec/Iban.lean` | 85 |
+| c12_iban_check_digits_from_97 | `Codec/Iban.lean` | 1536 |
 | c13_iban_check_digits_any_country_length | `Codec/Iban.lean` | 3 |
-| c14_iban_check_digits_without_shape | `Codec/Iban.lean` | 182 |
-| c15_iban_check_digits_only_bban_length | `Codec/Iban.lean` | 173 |
+| c14_iban_check_digits_without_shape | `Codec/Iban.lean` | 219 |
+| c15_iban_check_digits_only_bban_length | `Codec/Iban.lean` | 209 |
 | c16_iban_shape_check_accepts_lower_case | `Codec/Iban.lean` | 2 |
-| c17_iban_is_upper_accepts_lower_case | `Codec/Iban.lean` | 99 |
+| c17_iban_is_upper_accepts_lower_case | `Codec/Iban.lean` | 90 |
+| c18_iban_is_digit_from_slash | `Codec/Iban.lean` | 10 |
+| c19_iban_is_digit_to_colon | `Codec/Iban.lean` | 8 |
+| c20_iban_is_upper_from_at | `Codec/Iban.lean` | 8 |
+| c21_iban_is_upper_to_bracket | `Codec/Iban.lean` | 11 |
 
 The count for `m35_no_eof_check`, a tool that never stops printing, depends on how much
 it prints before the tests stop it, so it differs from run to run.
@@ -1232,4 +1236,32 @@ recorded for it.
 ```
 - def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'
 + def isUpper (c : Char) : Bool := 'A' ≤ c.toUpper && c.toUpper ≤ 'Z'
+```
+
+**c18_iban_is_digit_from_slash** in `Codec/Iban.lean`:
+
+```
+- def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ '9'
++ def isDigit (c : Char) : Bool := '/' ≤ c && c ≤ '9'
+```
+
+**c19_iban_is_digit_to_colon** in `Codec/Iban.lean`:
+
+```
+- def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ '9'
++ def isDigit (c : Char) : Bool := '0' ≤ c && c ≤ ':'
+```
+
+**c20_iban_is_upper_from_at** in `Codec/Iban.lean`:
+
+```
+- def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'
++ def isUpper (c : Char) : Bool := '@' ≤ c && c ≤ 'Z'
+```
+
+**c21_iban_is_upper_to_bracket** in `Codec/Iban.lean`:
+
+```
+- def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ 'Z'
++ def isUpper (c : Char) : Bool := 'A' ≤ c && c ≤ '['
 ```
