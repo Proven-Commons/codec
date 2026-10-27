@@ -24,14 +24,17 @@ differently, or not at all, counts against it. The counts go to
 tests/CROSS-CHECK.md.
 
 Last, each Luhn and IBAN request goes to python-stdnum 2.2, installed
-into .lake/oracle-packages if it is not there: `luhn.is_valid` and
-`luhn.calc_check_digit`, `iban.calc_check_digits`, and for the IBAN
-check `iso7064.mod_97_10.is_valid` on the rearranged text, with the
-shape checked as this codec does. Then each IBAN goes to `iban.validate`
+into .lake/oracle-packages if it is not there, and so do the malformed
+`luhn` requests, whose numbers have more than seven digits after their
+leading zeros: `luhn.is_valid` and `luhn.calc_check_digit`,
+`iban.calc_check_digits`, and for the IBAN check
+`iso7064.mod_97_10.is_valid` on the rearranged text, with the shape
+checked as this codec does. Then each IBAN goes to `iban.validate`
 too, which also checks each country's BBAN format in the SWIFT
 registry, as this codec does not: those refusals are counted on their
 own, as are the IBANs stdnum reads after removing spaces and dashes and
-upper-casing, and the empty Luhn number, which stdnum refuses.
+upper-casing, the empty Luhn number, which stdnum refuses, and the
+Luhn numbers too long for this tool, which stdnum reads.
 (stdnum removes spaces, dashes and dots.)
 """
 
@@ -71,8 +74,10 @@ def check_digit_section(args):
     stdnum()
     from stdnum import iban, luhn
     from stdnum.iso7064 import mod_97_10
-    items = [(label, req) for label, req, _, _, _ in run_tests.cases(args.seed, args.count)
-             if label in ("luhn", "luhncheck", "iban", "ibancheck")]
+    items = [("luhn" if label == "error" else label, req)
+             for label, req, _, _, _ in run_tests.cases(args.seed, args.count)
+             if label in ("luhn", "luhncheck", "iban", "ibancheck")
+             or (label == "error" and req.startswith("luhn "))]
     ours = []
     problem = run_tests.run_tool((req + "\n" for _, req in items), ours.append)
     if problem or len(ours) != len(items):
@@ -94,7 +99,8 @@ def check_digit_section(args):
         except Exception:
             return "none"
 
-    counts = {"same": 0, "empty": 0, "normalized": 0, "country": 0, "shape": 0, "nondigit": 0, "other": []}
+    counts = {"same": 0, "empty": 0, "normalized": 0, "country": 0, "shape": 0, "nondigit": 0,
+              "long": 0, "long_false": 0, "other": []}
     for (label, req), o in zip(items, ours):
         t = theirs(label, req)
         arg = req.split(" ", 1)[1] if " " in req else ""
@@ -102,6 +108,9 @@ def check_digit_section(args):
             counts["same"] += 1
         elif label == "luhn" and arg == "":
             counts["empty"] += 1
+        elif label == "luhn" and o == "error":
+            counts["long"] += 1
+            counts["long_false"] += t == "false"
         elif label in ("iban", "ibancheck") and any(chr(n) in " -." or 97 <= n <= 122
                                                     for n in run_tests_nums(req.replace(";", ","))):
             counts["normalized"] += 1
@@ -114,7 +123,8 @@ def check_digit_section(args):
         else:
             counts["other"].append((req, o, t))
     # The whole of stdnum's IBAN check, with the SWIFT registry.
-    full = {"same": 0, "same_true": 0, "registry": 0, "national": 0, "normalized": 0, "other": []}
+    full = {"same": 0, "same_true": 0, "examples": 0, "registry": 0, "national": 0, "normalized": 0,
+            "other": []}
     for (label, req), o in zip(items, ours):
         if label != "iban":
             continue
@@ -127,6 +137,7 @@ def check_digit_section(args):
         if o == t:
             full["same"] += 1
             full["same_true"] += t == "true"
+            full["examples"] += t == "true" and text in run_tests.IBAN_EXAMPLES
         elif o == "true" and why in ("InvalidComponent", "InvalidFormat", "InvalidLength"):
             # stdnum also runs its own national checks (bank lists, national
             # check digits); those refusals are not the registry's.
@@ -156,9 +167,12 @@ def check_digit_section(args):
         f"an empty BBAN or one of 31 characters, which this codec refuses and `calc_check_digits` "
         f"takes, since it does not check the shape: {counts['shape']}. A Luhn number with a value above 9, which this codec refuses as "
         f"not a digit and which, written out for stdnum, becomes more than one digit: "
-        f"{counts['nondigit']}. Other differences: {len(counts['other'])}.",
+        f"{counts['nondigit']}. A Luhn number with more than seven digits after its leading zeros, "
+        f"which this tool answers with `error` and stdnum reads: {counts['long']}, of which stdnum "
+        f"gives `false` on {counts['long_false']}. Other differences: {len(counts['other'])}.",
         f"- The same IBANs given to stdnum's whole `iban.validate`, which checks the shape itself: "
-        f"the same answer on {full['same']}, of which {full['same_true']} pass both. It refuses, for "
+        f"the same answer on {full['same']}, of which {full['same_true']} pass both, "
+        f"{full['examples']} of them the tests' example IBANs. It refuses, for "
         f"a country code or BBAN format not in the SWIFT registry, {full['registry']} that pass this "
         f"codec's check, which does not use the registry; and {full['national']} for one of its own "
         f"national checks, such as a bank code missing from its list. Read after stdnum's "
