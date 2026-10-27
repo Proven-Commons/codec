@@ -55,6 +55,7 @@ Scope: the check digit of ISO/IEC 7812-1, Annex B, from H. P. Luhn's US patent 2
 - `valid` holds when every digit is 0 to 9 and the Luhn sum is a multiple of 10. The sum counts from the right, starting with the check digit: every second digit is doubled, and 9 is taken off a doubled digit above 9. The empty number passes, since its sum is 0.
 - `checkDigit` gives, for a payload of digits 0 to 9, the digit to put after it so that the whole is valid; it is the only such digit. On a payload with a value above 9, what it gives is not specified.
 - What the check catches is a theorem: any one digit typed wrong, and any two adjacent different digits typed in the wrong order, except 0 and 9. That exception is a theorem too.
+- No theorem covers a digit added or dropped. A 0 added to or dropped from the front of a number always passes, since a 0 adds nothing to the sum.
 
 ## IBAN
 
@@ -63,6 +64,7 @@ Scope: the check digits of ISO 13616-1, by ISO 7064 MOD 97-10, on the electronic
 - `valid` holds when the text has that shape and, with its first four characters moved to the end and each letter written as A = 10 to Z = 35, the digits read as one number leave 1 when divided by 97.
 - `checkDigits` gives, for a country code of two letters and a BBAN of the right shape, the two digits from 02 to 98 that make the IBAN pass: 98 less the remainder of the BBAN, the country code and `00`. There is never more than one, and it fails on the wrong shape, a country code of any other length included.
 - What the check catches is a theorem: one digit typed for another or one letter for another, and two adjacent digits or two adjacent letters typed in the wrong order. Where the rearrangement splits an adjacent pair, the 4th and 5th characters, the swap is still caught, since 10 has order 96 mod 97. A letter and a digit swapped need not be caught: B is 11, so `4B1` and `41B` both read as `4111`, and a proved vector gives two IBANs that pass and differ only so.
+- No theorem covers a character added or dropped. Three errors in the BBAN always pass, as long as it stays 1 to 30 characters long: a 0 added to or dropped from its front, a letter written as its two digits, such as `N` as `23`, and two digits from 10 to 35 written as their letter. The BBAN comes first in the number the check reads, and a letter reads as its two digits, so none of these changes that number. A 0 added to a BBAN of 30 characters makes 31, which is refused.
 - Not checked: each country's BBAN format and length, in the SWIFT IBAN Registry, and whether the country code is one. Check digits 00, 01 and 99 never come from the computation, but an IBAN with them can pass the check.
 
 ## Valid inputs and errors
