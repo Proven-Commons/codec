@@ -423,12 +423,19 @@ def iban_number(text):
     return int("".join(str(int(c, 36)) for c in text))
 
 
-def coded_number(text):
-    """The number the code's `mod97` reads from letters and digits: a
-    letter as its code point less 55. It reads upper case as
-    `iban_number` does, and a lower-case letter as 32 more than its
-    capital."""
-    return int("".join(c if "0" <= c <= "9" else str(ord(c) - 55) for c in text))
+def coded_mod97(text, digits="0123456789"):
+    """The remainder mod 97 as the code's `mod97` computes it: a
+    character in `digits` as its code point less 48, at one decimal
+    place, and any other as its code point less 55, floored at 0, at
+    two. It reads upper case as `iban_number` does, and a lower-case
+    letter as 32 more than its capital."""
+    r = 0
+    for c in text:
+        if c in digits:
+            r = (r * 10 + max(ord(c) - 48, 0)) % 97
+        else:
+            r = (r * 100 + max(ord(c) - 55, 0)) % 97
+    return r
 
 
 def oracle_iban(text):
@@ -443,7 +450,12 @@ def oracle_iban_check(country, bban):
 
 
 IBAN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-IBAN_POOL = IBAN_CHARS + "az -.\xe9"
+# The characters just outside 0 to 9, A to Z and a to z in US-ASCII,
+# which a slip of one in the code's `isDigit` or `isUpper` would let in.
+OFF_BY_ONE = "/:@[`{"
+# How a slip of one in `isDigit` would read `/` and `:`: as digits.
+SLIP_DIGITS = "/0123456789:"
+IBAN_POOL = IBAN_CHARS + "az -.\xe9" + OFF_BY_ONE
 
 
 def forged(country, bban, number=iban_number):
@@ -461,6 +473,18 @@ def forged_check(country, check, bban):
             return country + check + bban + f"{n:02d}"
 
 
+def forged_off_by_one(template):
+    """`template` with each `?` made a digit, so that the mod-97 sum
+    passes both as the code reads each character and as a slip of one
+    in `isDigit` would read `/` and `:`."""
+    for fill in itertools.product("0123456789", repeat=template.count("?")):
+        digits = iter(fill)
+        text = "".join(next(digits) if c == "?" else c for c in template)
+        moved = text[4:] + text[:4]
+        if coded_mod97(moved) == 1 and coded_mod97(moved, SLIP_DIGITS) == 1:
+            return text
+
+
 # IBANs on the edges of the shape, with check digits that make the
 # mod-97 sum pass, so only the shape decides: country codes with a digit
 # or in lower case, BBANs of 0, 1, 30 and 31 characters or in lower
@@ -470,13 +494,21 @@ def forged_check(country, check, bban):
 # no string with lower case only in its country code can: the two sums
 # then always differ mod 97. So that case has two strings, one passing
 # each way.
+# Then each character of OFF_BY_ONE in the country code, the check
+# digits and the BBAN. int(c, 36) reads none of them, so these sums
+# follow the code: the code point less 55, floored at 0. A slip of one
+# in `isDigit` would read `/` or `:` as a digit instead, so each sum
+# passes that way too.
 IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
-                    forged("gb", "NWBK60161331926819", coded_number),
+                    forged("gb", "NWBK60161331926819", coded_mod97),
                     forged("GB", "nwbk6x16133y926819"), forged("GB", ""), forged("GB", "A"),
                     forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
                     forged("GB", "1" * 31), forged("ZZ", "Z" * 30),
                     forged_check("GB", "A1", "NWBK1234"), forged_check("GB", "1A", "NWBK1234"),
                     forged_check("GB", "AB", "NWBK1234"), forged_check("GB", "ZZ", "")]
+IBAN_SHAPE_EDGES += [forged_off_by_one(template) for c in OFF_BY_ONE
+                     for template in ("G" + c + "??NWBK6016??", "GB" + c + "?NWBK6016??",
+                                      "GB??NWBK??" + c + "6016")]
 
 
 def random_iban(rng):
