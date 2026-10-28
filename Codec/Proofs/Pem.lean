@@ -1,26 +1,26 @@
 /-
-  Proofs of the PEM statements in `Spec.lean`, under the same names, from
-  the lemmas in `Proofs/Pem/` and the base 64 statements. The vectors are
+  Proofs of the PEM statements in `Codec/Spec.lean`, under the same names, from
+  the lemmas in `Codec/Proofs/Pem/` and the base 64 statements. The vectors are
   checked by evaluation in the kernel.
 -/
 
 import Codec
-import Spec.Defs
-import Proofs.Base64
-import Proofs.Pem.Lines
-import Proofs.Pem.Parts
+import Codec.Spec.Defs
+import Codec.Proofs.Base64
+import Codec.Proofs.Pem.Lines
+import Codec.Proofs.Pem.Parts
 
 open Codec
 
 namespace Codec.Proofs.Pem
 
 theorem pm_text_eq (label : List Char) (data : List UInt8) :
-    (Pem.lines label data).flatMap (· ++ ['\n']) = Spec.pemText label data := by
-  rw [lines_eq, Spec.pemText, List.flatMap_def]
+    (Pem.lines label data).flatMap (· ++ ['\n']) = Codec.Spec.pemText label data := by
+  rw [lines_eq, Codec.Spec.pemText, List.flatMap_def]
 
-theorem pm_mem_lines64 {s l : List Char} {c : Char} (hl : l ∈ Spec.lines64 s) (hc : c ∈ l) :
+theorem pm_mem_lines64 {s l : List Char} {c : Char} (hl : l ∈ Codec.Spec.lines64 s) (hc : c ∈ l) :
     c ∈ s := by
-  unfold Spec.lines64 at hl
+  unfold Codec.Spec.lines64 at hl
   obtain ⟨i, -, rfl⟩ := List.mem_map.mp hl
   exact List.mem_of_mem_drop (List.mem_of_mem_take hc)
 
@@ -59,11 +59,11 @@ theorem pm_encode_ok (bs : List UInt8) : ∀ c ∈ Base64.encode bs, c ≠ '\r' 
     intro x hx
     cases hx
 
-theorem pm_labelChar_ok {c : Char} (h : Spec.labelChar c) : c ≠ '\r' ∧ c ≠ '\n' := by
-  unfold Spec.labelChar at h
+theorem pm_labelChar_ok {c : Char} (h : Codec.Spec.labelChar c) : c ≠ '\r' ∧ c ≠ '\n' := by
+  unfold Codec.Spec.labelChar at h
   constructor <;> rintro rfl <;> revert h <;> decide
 
-theorem pm_labelTail_ok {l : List Char} (h : Spec.LabelTail l) :
+theorem pm_labelTail_ok {l : List Char} (h : Codec.Spec.LabelTail l) :
     ∀ c ∈ l, c ≠ '\r' ∧ c ≠ '\n' := by
   induction h with
   | nil => intro x hx; cases hx
@@ -81,7 +81,7 @@ theorem pm_labelTail_ok {l : List Char} (h : Spec.LabelTail l) :
       | head => exact pm_labelChar_ok hc
       | tail _ hx => exact ih x hx
 
-theorem pm_label_ok {l : List Char} (h : Spec.Label l) : ∀ c ∈ l, c ≠ '\r' ∧ c ≠ '\n' := by
+theorem pm_label_ok {l : List Char} (h : Codec.Spec.Label l) : ∀ c ∈ l, c ≠ '\r' ∧ c ≠ '\n' := by
   rcases h with rfl | ⟨c, rest, rfl, hc, ht⟩
   · intro x hx; cases hx
   · intro x hx
@@ -89,11 +89,11 @@ theorem pm_label_ok {l : List Char} (h : Spec.Label l) : ∀ c ∈ l, c ≠ '\r'
     | head => exact pm_labelChar_ok hc
     | tail _ hx => exact pm_labelTail_ok ht x hx
 
-theorem pm_pemLines_ok (label : List Char) (data : List UInt8) (hl : Spec.Label label) :
-    ∀ l ∈ Spec.pemLines label data, '\r' ∉ l ∧ '\n' ∉ l := by
-  have key : ∀ l ∈ Spec.pemLines label data, ∀ c ∈ l, c ≠ '\r' ∧ c ≠ '\n' := by
+theorem pm_pemLines_ok (label : List Char) (data : List UInt8) (hl : Codec.Spec.Label label) :
+    ∀ l ∈ Codec.Spec.pemLines label data, '\r' ∉ l ∧ '\n' ∉ l := by
+  have key : ∀ l ∈ Codec.Spec.pemLines label data, ∀ c ∈ l, c ≠ '\r' ∧ c ≠ '\n' := by
     intro l hl' c hc
-    simp only [Spec.pemLines, List.mem_append, List.mem_singleton] at hl'
+    simp only [Codec.Spec.pemLines, List.mem_append, List.mem_singleton] at hl'
     rcases hl' with (rfl | hl') | rfl
     · simp only [List.mem_append] at hc
       rcases hc with (hc | hc) | hc
@@ -110,21 +110,21 @@ theorem pm_pemLines_ok (label : List Char) (data : List UInt8) (hl : Spec.Label 
   exact ⟨fun h => (key l hl' _ h).1 rfl, fun h => (key l hl' _ h).2 rfl⟩
 
 theorem pm_pemLines_ne_nil (label : List Char) (data : List UInt8) :
-    ∀ l ∈ Spec.pemLines label data, l ≠ [] := by
+    ∀ l ∈ Codec.Spec.pemLines label data, l ≠ [] := by
   intro l hl'
-  simp only [Spec.pemLines, List.mem_append, List.mem_singleton] at hl'
+  simp only [Codec.Spec.pemLines, List.mem_append, List.mem_singleton] at hl'
   rcases hl' with (rfl | hl') | rfl
   · simp
   · exact lines64_ne_nil _ l hl'
   · simp
 
 theorem pm_linesEol_lf (ls : List (List Char)) (h : ∀ l ∈ ls, '\r' ∉ l ∧ '\n' ∉ l) :
-    Spec.LinesEol ((ls.map (· ++ ['\n'])).flatten) ls := by
+    Codec.Spec.LinesEol ((ls.map (· ++ ['\n'])).flatten) ls := by
   induction ls with
-  | nil => exact Spec.LinesEol.nil
+  | nil => exact Codec.Spec.LinesEol.nil
   | cons l ls ih =>
     have hl := h l (List.mem_cons_self ..)
-    have := Spec.LinesEol.cons (e := ['\n']) hl.1 hl.2 (Or.inr (Or.inr rfl))
+    have := Codec.Spec.LinesEol.cons (e := ['\n']) hl.1 hl.2 (Or.inr (Or.inr rfl))
       (ih fun l' hl' => h l' (List.mem_cons_of_mem _ hl'))
     simpa only [List.map_cons, List.flatten_cons, List.append_assoc] using this
 
@@ -132,8 +132,8 @@ end Codec.Proofs.Pem
 
 open Codec.Proofs.Pem
 
-theorem Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List Char) :
-    Pem.encode label data = some text ↔ Spec.Label label ∧ text = Spec.pemText label data := by
+theorem Codec.Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List Char) :
+    Pem.encode label data = some text ↔ Codec.Spec.Label label ∧ text = Codec.Spec.pemText label data := by
   unfold Pem.encode
   rw [← validLabel_iff, pm_text_eq]
   constructor
@@ -146,8 +146,8 @@ theorem Spec.pem_encode_iff (label : List Char) (data : List UInt8) (text : List
   · rintro ⟨hv, rfl⟩
     simp [hv]
 
-theorem Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
-    Pem.decode text = some (label, data) ↔ Spec.StrictPem text label data := by
+theorem Codec.Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
+    Pem.decode text = some (label, data) ↔ Codec.Spec.StrictPem text label data := by
   constructor
   · intro h
     cases hs : Pem.splitLines text.length text with
@@ -186,7 +186,7 @@ theorem Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
                   obtain ⟨rfl, hv, hbody⟩ := hc
                   simp only [Option.some.injEq, Prod.mk.injEq] at h
                   obtain ⟨rfl, rfl⟩ := h
-                  have hflat := Spec.base64_encode_decode _ _ hd
+                  have hflat := Codec.Spec.base64_encode_decode _ _ hd
                   rw [lines64_eq, ← hflat] at hbody
                   rw [labelOf_some _ _ _ hb, labelOf_some _ _ _ he, hbody] at hle
                   exact ⟨(validLabel_iff _).mp hv, hle⟩
@@ -197,24 +197,24 @@ theorem Spec.pem_decode_iff (text label : List Char) (data : List UInt8) :
     unfold Pem.decode
     rw [hs]
     simp only [Option.bind_eq_bind, Option.bind_some]
-    simp only [Spec.pemLines, List.cons_append, List.nil_append, List.getLast?_concat,
+    simp only [Codec.Spec.pemLines, List.cons_append, List.nil_append, List.getLast?_concat,
       List.dropLast_concat, labelOf_append, Option.bind_some, flatten_lines64,
-      Spec.base64_decode_encode, lines64_eq]
+      Codec.Spec.base64_decode_encode, lines64_eq]
     simp only [(validLabel_iff label).mpr hl, and_self, ite_true]
 
-theorem Spec.pem_decode_encode (label : List Char) (data : List UInt8) (text : List Char) :
+theorem Codec.Spec.pem_decode_encode (label : List Char) (data : List UInt8) (text : List Char) :
     Pem.encode label data = some text → Pem.decode text = some (label, data) := by
   intro h
-  obtain ⟨hl, rfl⟩ := (Spec.pem_encode_iff label data text).mp h
-  exact (Spec.pem_decode_iff _ _ _).mpr ⟨hl, pm_linesEol_lf _ (pm_pemLines_ok label data hl)⟩
+  obtain ⟨hl, rfl⟩ := (Codec.Spec.pem_encode_iff label data text).mp h
+  exact (Codec.Spec.pem_decode_iff _ _ _).mpr ⟨hl, pm_linesEol_lf _ (pm_pemLines_ok label data hl)⟩
 
-theorem Spec.pem_vectors :
-    Pem.encode "PUBLIC KEY".toList Spec.figure15 = some
+theorem Codec.Spec.pem_vectors :
+    Pem.encode "PUBLIC KEY".toList Codec.Spec.figure15 = some
       ("-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\n".toList ++
        "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\n-----END PUBLIC KEY-----\n".toList) ∧
     Pem.decode ("-----BEGIN PUBLIC KEY-----\r\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEn1LlwLN/KBYQRVH6HfIMTzfEqJOVztLe\r\n".toList ++
        "kLchp2hi78cCaMY81FBlYs8J9l7krc+M4aBeCGYFjba+hiXttJWPL7ydlE+5UG4U\r\nNkn3Eos8EiZByi9DVsyfy9eejh+8AXgp\r\n-----END PUBLIC KEY-----\r\n".toList) =
-      some ("PUBLIC KEY".toList, Spec.figure15) ∧
+      some ("PUBLIC KEY".toList, Codec.Spec.figure15) ∧
     Pem.encode "X".toList [] = some "-----BEGIN X-----\n-----END X-----\n".toList ∧
     Pem.decode "-----BEGIN X-----\n-----END X-----\n".toList = some ("X".toList, []) ∧
     Pem.decode "-----BEGIN -----\rAA==\r-----END -----\r".toList = some ([], [0]) ∧

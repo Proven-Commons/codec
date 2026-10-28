@@ -1,22 +1,22 @@
 /-
-  Proofs of the Hex statements in `Spec.lean`, under the same names.
+  Proofs of the Hex statements in `Codec/Spec.lean`, under the same names.
 
   The helper lemmas live in `Codec.Proofs.Hex`. The facts about single
   characters are checked by `decide` over the ASCII range (code points
-  below 128); above it, `Hex.value` gives `none` and `Spec.asciiLower`
+  below 128); above it, `Hex.value` gives `none` and `Codec.Spec.asciiLower`
   changes nothing.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
 namespace Codec.Proofs.Hex
 
-/-- `Hex.digit` and `Spec.hexDigit` agree below 16 (they differ only in the
+/-- `Hex.digit` and `Codec.Spec.hexDigit` agree below 16 (they differ only in the
     default for out-of-range values). -/
-theorem digit_eq_hexDigit : ∀ n : Fin 16, Hex.digit n.val = Spec.hexDigit n.val := by decide
+theorem digit_eq_hexDigit : ∀ n : Fin 16, Hex.digit n.val = Codec.Spec.hexDigit n.val := by decide
 
 theorem value_digit_fin : ∀ n : Fin 16, Hex.value (Hex.digit n.val) = some n.val := by decide
 
@@ -24,11 +24,11 @@ theorem value_digit_fin : ∀ n : Fin 16, Hex.value (Hex.digit n.val) = some n.v
 theorem value_small : ∀ n : Fin 128,
     Hex.value (Char.ofNat n.val) = none ∨
     ∃ h : Fin 16, Hex.value (Char.ofNat n.val) = some h.val ∧
-      Spec.asciiLower (Char.ofNat n.val) = Hex.digit h.val := by decide
+      Codec.Spec.asciiLower (Char.ofNat n.val) = Hex.digit h.val := by decide
 
 /-- On ASCII characters, lowercasing does not change the hex value. -/
 theorem value_lower_small : ∀ n : Fin 128,
-    Hex.value (Spec.asciiLower (Char.ofNat n.val)) = Hex.value (Char.ofNat n.val) := by decide
+    Hex.value (Codec.Spec.asciiLower (Char.ofNat n.val)) = Hex.value (Char.ofNat n.val) := by decide
 
 theorem value_big (c : Char) (h : 128 ≤ c.toNat) : Hex.value c = none := by
   simp only [Hex.value, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
@@ -41,21 +41,21 @@ theorem value_big (c : Char) (h : 128 ≤ c.toNat) : Hex.value c = none := by
       · omega
       · rfl
 
-theorem lower_big (c : Char) (h : 128 ≤ c.toNat) : Spec.asciiLower c = c := by
-  simp only [Spec.asciiLower, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
+theorem lower_big (c : Char) (h : 128 ≤ c.toNat) : Codec.Spec.asciiLower c = c := by
+  simp only [Codec.Spec.asciiLower, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
   simp only [Char.reduceToNat]
   split
   · omega
   · rfl
 
-theorem value_lower (c : Char) : Hex.value (Spec.asciiLower c) = Hex.value c := by
+theorem value_lower (c : Char) : Hex.value (Codec.Spec.asciiLower c) = Hex.value c := by
   by_cases h : c.toNat < 128
   · have := value_lower_small ⟨c.toNat, h⟩
     simpa only [Char.ofNat_toNat] using this
   · rw [lower_big c (by omega)]
 
 theorem value_some (c : Char) (h : Nat) (hv : Hex.value c = some h) :
-    h < 16 ∧ Spec.asciiLower c = Hex.digit h := by
+    h < 16 ∧ Codec.Spec.asciiLower c = Hex.digit h := by
   by_cases hc : c.toNat < 128
   · rcases value_small ⟨c.toNat, hc⟩ with h1 | ⟨k, h1, h2⟩
     · simp only [Char.ofNat_toNat] at h1
@@ -68,7 +68,7 @@ theorem value_some (c : Char) (h : Nat) (hv : Hex.value c = some h) :
   · rw [value_big c (by omega)] at hv
     cases hv
 
-theorem digit_hexDigit (n : Nat) (h : n < 16) : Hex.digit n = Spec.hexDigit n :=
+theorem digit_hexDigit (n : Nat) (h : n < 16) : Hex.digit n = Codec.Spec.hexDigit n :=
   digit_eq_hexDigit ⟨n, h⟩
 
 theorem value_digit (n : Nat) (h : n < 16) : Hex.value (Hex.digit n) = some n :=
@@ -88,18 +88,18 @@ end Codec.Proofs.Hex
 
 open Codec.Proofs.Hex
 
-theorem Spec.hex_encode_nil : Hex.encode [] = [] := rfl
+theorem Codec.Spec.hex_encode_nil : Hex.encode [] = [] := rfl
 
 /-- Each byte is two digits, high half first. -/
-theorem Spec.hex_encode_cons (b : UInt8) (bs : List UInt8) :
+theorem Codec.Spec.hex_encode_cons (b : UInt8) (bs : List UInt8) :
     Hex.encode (b :: bs) =
-      Spec.hexDigit (b.toNat / 16) :: Spec.hexDigit (b.toNat % 16) :: Hex.encode bs := by
+      Codec.Spec.hexDigit (b.toNat / 16) :: Codec.Spec.hexDigit (b.toNat % 16) :: Hex.encode bs := by
   have h1 : b.toNat / 16 < 16 := by have := b.toNat_lt; omega
   have h2 : b.toNat % 16 < 16 := Nat.mod_lt _ (by decide)
   rw [Hex.encode, digit_hexDigit _ h1, digit_hexDigit _ h2]
 
 /-- Decoding gives back what was encoded. -/
-theorem Spec.hex_decode_encode (bs : List UInt8) :
+theorem Codec.Spec.hex_decode_encode (bs : List UInt8) :
     Hex.decode (Hex.encode bs) = some bs := by
   induction bs with
   | nil => rfl
@@ -110,8 +110,8 @@ theorem Spec.hex_decode_encode (bs : List UInt8) :
     simp only [byte_split]
 
 /-- Decoding accepts any mix of upper and lower case. -/
-theorem Spec.hex_decode_any_case (cs : List Char) (bs : List UInt8) :
-    cs.map Spec.asciiLower = Hex.encode bs → Hex.decode cs = some bs := by
+theorem Codec.Spec.hex_decode_any_case (cs : List Char) (bs : List UInt8) :
+    cs.map Codec.Spec.asciiLower = Hex.encode bs → Hex.decode cs = some bs := by
   induction bs generalizing cs with
   | nil =>
     intro h
@@ -140,8 +140,8 @@ theorem Spec.hex_decode_any_case (cs : List Char) (bs : List UInt8) :
 
 /-- Decoding accepts nothing else: whatever it accepts is an encoding,
     up to case. -/
-theorem Spec.hex_encode_decode (cs : List Char) (bs : List UInt8) :
-    Hex.decode cs = some bs → Hex.encode bs = cs.map Spec.asciiLower := by
+theorem Codec.Spec.hex_encode_decode (cs : List Char) (bs : List UInt8) :
+    Hex.decode cs = some bs → Hex.encode bs = cs.map Codec.Spec.asciiLower := by
   induction cs using Hex.decode.induct generalizing bs with
   | case1 =>
     intro h
@@ -174,19 +174,19 @@ theorem Spec.hex_encode_decode (cs : List Char) (bs : List UInt8) :
 /-- The test vectors of RFC 4648, section 10. The RFC writes them in
     uppercase: encoding gives them in lowercase, and decoding reads them
     as the RFC writes them. -/
-theorem Spec.hex_rfc4648_vectors :
-    Hex.encode (Spec.ascii "") = "".toList ∧
-    Hex.encode (Spec.ascii "f") = "66".toList ∧
-    Hex.encode (Spec.ascii "fo") = "666f".toList ∧
-    Hex.encode (Spec.ascii "foo") = "666f6f".toList ∧
-    Hex.encode (Spec.ascii "foob") = "666f6f62".toList ∧
-    Hex.encode (Spec.ascii "fooba") = "666f6f6261".toList ∧
-    Hex.encode (Spec.ascii "foobar") = "666f6f626172".toList ∧
-    Hex.decode "".toList = some (Spec.ascii "") ∧
-    Hex.decode "66".toList = some (Spec.ascii "f") ∧
-    Hex.decode "666F".toList = some (Spec.ascii "fo") ∧
-    Hex.decode "666F6F".toList = some (Spec.ascii "foo") ∧
-    Hex.decode "666F6F62".toList = some (Spec.ascii "foob") ∧
-    Hex.decode "666F6F6261".toList = some (Spec.ascii "fooba") ∧
-    Hex.decode "666F6F626172".toList = some (Spec.ascii "foobar") := by
+theorem Codec.Spec.hex_rfc4648_vectors :
+    Hex.encode (Codec.Spec.ascii "") = "".toList ∧
+    Hex.encode (Codec.Spec.ascii "f") = "66".toList ∧
+    Hex.encode (Codec.Spec.ascii "fo") = "666f".toList ∧
+    Hex.encode (Codec.Spec.ascii "foo") = "666f6f".toList ∧
+    Hex.encode (Codec.Spec.ascii "foob") = "666f6f62".toList ∧
+    Hex.encode (Codec.Spec.ascii "fooba") = "666f6f6261".toList ∧
+    Hex.encode (Codec.Spec.ascii "foobar") = "666f6f626172".toList ∧
+    Hex.decode "".toList = some (Codec.Spec.ascii "") ∧
+    Hex.decode "66".toList = some (Codec.Spec.ascii "f") ∧
+    Hex.decode "666F".toList = some (Codec.Spec.ascii "fo") ∧
+    Hex.decode "666F6F".toList = some (Codec.Spec.ascii "foo") ∧
+    Hex.decode "666F6F62".toList = some (Codec.Spec.ascii "foob") ∧
+    Hex.decode "666F6F6261".toList = some (Codec.Spec.ascii "fooba") ∧
+    Hex.decode "666F6F626172".toList = some (Codec.Spec.ascii "foobar") := by
   decide +kernel

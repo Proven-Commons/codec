@@ -2,15 +2,15 @@
   Proofs of the Base32 round trip.
 
   The statement proved here is the Base32 version of the round trip
-  statements in `Spec.lean` for the other codecs. A matching statement
-  for Base32 still has to be added to `Spec.lean` by a reviewer, so
+  statements in `Codec/Spec.lean` for the other codecs. A matching statement
+  for Base32 still has to be added to `Codec/Spec.lean` by a reviewer, so
   this file is a draft that builds on its own.
 
   The helper lemmas live in `Codec.Proofs.Base32`.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
@@ -38,7 +38,7 @@ end Codec.Proofs.Base32
 open Codec.Proofs.Base32
 
 /-- Decoding gives back what was encoded. -/
-theorem Spec.base32_decode_encode (bs : List UInt8) :
+theorem Codec.Spec.base32_decode_encode (bs : List UInt8) :
     Base32.decode (Base32.encode bs) = some bs := by
   induction bs using Base32.encode.induct with
   | case1 a b c d e rest ih =>
@@ -116,12 +116,12 @@ theorem Spec.base32_decode_encode (bs : List UInt8) :
   | case6 => rfl
 
 /-- The test vectors of RFC 4648, section 10. -/
-theorem Spec.base32_rfc4648_vectors :
-    Base32.encode (Spec.ascii "") = "".toList ∧
-    Base32.encode (Spec.ascii "f") = "MY======".toList ∧
-    Base32.encode (Spec.ascii "fo") = "MZXQ====".toList ∧
-    Base32.encode (Spec.ascii "foo") = "MZXW6===".toList ∧
-    Base32.encode (Spec.ascii "foob") = "MZXW6YQ=".toList ∧
-    Base32.encode (Spec.ascii "fooba") = "MZXW6YTB".toList ∧
-    Base32.encode (Spec.ascii "foobar") = "MZXW6YTBOI======".toList := by
+theorem Codec.Spec.base32_rfc4648_vectors :
+    Base32.encode (Codec.Spec.ascii "") = "".toList ∧
+    Base32.encode (Codec.Spec.ascii "f") = "MY======".toList ∧
+    Base32.encode (Codec.Spec.ascii "fo") = "MZXQ====".toList ∧
+    Base32.encode (Codec.Spec.ascii "foo") = "MZXW6===".toList ∧
+    Base32.encode (Codec.Spec.ascii "foob") = "MZXW6YQ=".toList ∧
+    Base32.encode (Codec.Spec.ascii "fooba") = "MZXW6YTB".toList ∧
+    Base32.encode (Codec.Spec.ascii "foobar") = "MZXW6YTBOI======".toList := by
   decide +kernel

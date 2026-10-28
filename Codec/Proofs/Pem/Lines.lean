@@ -1,5 +1,5 @@
 /-
-  Splitting text into lines: `Pem.splitLines` against `Spec.LinesEol`.
+  Splitting text into lines: `Pem.splitLines` against `Codec.Spec.LinesEol`.
 
   `eol` allows CR LF, CR, or LF, so "a" CR LF "b" LF also reads as the
   lines "a", "", "b". `splitLines` takes CR LF as one line end, which is
@@ -8,14 +8,14 @@
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
 namespace Codec.Proofs.Pem
 
 theorem ln_takeLine_sound (text l rest : List Char) (h : Pem.takeLine text = some (l, rest)) :
-    ∃ e, Spec.Eol e ∧ text = l ++ e ++ rest ∧ '\r' ∉ l ∧ '\n' ∉ l ∧ rest.length < text.length := by
+    ∃ e, Codec.Spec.Eol e ∧ text = l ++ e ++ rest ∧ '\r' ∉ l ∧ '\n' ∉ l ∧ rest.length < text.length := by
   induction text using Pem.takeLine.induct generalizing l rest with
   | case1 => simp [Pem.takeLine] at h
   | case2 t =>
@@ -48,15 +48,15 @@ theorem ln_takeLine_sound (text l rest : List Char) (h : Pem.takeLine text = som
       · simp only [List.length_cons] at h6 ⊢; omega
 
 theorem splitLines_sound (fuel : Nat) (text : List Char) (ls : List (List Char))
-    (h : Pem.splitLines fuel text = some ls) : Spec.LinesEol text ls := by
+    (h : Pem.splitLines fuel text = some ls) : Codec.Spec.LinesEol text ls := by
   induction fuel generalizing text ls with
   | zero =>
     cases text with
-    | nil => simp [Pem.splitLines] at h; subst h; exact Spec.LinesEol.nil
+    | nil => simp [Pem.splitLines] at h; subst h; exact Codec.Spec.LinesEol.nil
     | cons c t => simp [Pem.splitLines] at h
   | succ f ih =>
     cases text with
-    | nil => simp [Pem.splitLines] at h; subst h; exact Spec.LinesEol.nil
+    | nil => simp [Pem.splitLines] at h; subst h; exact Codec.Spec.LinesEol.nil
     | cons c t =>
       rw [Pem.splitLines.eq_3 _ _ (by simp)] at h
       cases ht : Pem.takeLine (c :: t) with
@@ -71,10 +71,10 @@ theorem splitLines_sound (fuel : Nat) (text : List Char) (ls : List (List Char))
           subst h
           obtain ⟨e, he, heq, h1, h2, _⟩ := ln_takeLine_sound _ _ _ ht
           rw [heq]
-          exact Spec.LinesEol.cons h1 h2 he (ih r ls' hs)
+          exact Codec.Spec.LinesEol.cons h1 h2 he (ih r ls' hs)
 
 theorem ln_takeLine_complete (l e rest : List Char) (h1 : '\r' ∉ l) (h2 : '\n' ∉ l)
-    (he : Spec.Eol e) (hcr : e = ['\r'] → rest.head? ≠ some '\n') :
+    (he : Codec.Spec.Eol e) (hcr : e = ['\r'] → rest.head? ≠ some '\n') :
     Pem.takeLine (l ++ e ++ rest) = some (l, rest) := by
   induction l with
   | nil =>
@@ -93,7 +93,7 @@ theorem ln_takeLine_complete (l e rest : List Char) (h1 : '\r' ∉ l) (h2 : '\n'
     rw [Pem.takeLine.eq_5 _ _ (fun _ h _ => hc1 h) hc1 hc2, ih h1.2 h2.2]
     rfl
 
-theorem ln_linesEol_head (rest : List Char) (ls : List (List Char)) (h : Spec.LinesEol rest ls)
+theorem ln_linesEol_head (rest : List Char) (ls : List (List Char)) (h : Codec.Spec.LinesEol rest ls)
     (hne : ∀ l ∈ ls, l ≠ []) : rest.head? ≠ some '\n' := by
   cases h with
   | nil => simp
@@ -108,7 +108,7 @@ theorem ln_linesEol_head (rest : List Char) (ls : List (List Char)) (h : Spec.Li
       exact h2 (by simp)
 
 theorem splitLines_complete (fuel : Nat) (text : List Char) (ls : List (List Char))
-    (hfuel : text.length ≤ fuel) (h : Spec.LinesEol text ls) (hne : ∀ l ∈ ls, l ≠ []) :
+    (hfuel : text.length ≤ fuel) (h : Codec.Spec.LinesEol text ls) (hne : ∀ l ∈ ls, l ≠ []) :
     Pem.splitLines fuel text = some ls := by
   induction h generalizing fuel with
   | nil => cases fuel <;> simp [Pem.splitLines]

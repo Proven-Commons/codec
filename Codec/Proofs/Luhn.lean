@@ -1,10 +1,10 @@
 /-
-  Proofs of the Luhn statements in `Spec.lean`, under the same names. The
+  Proofs of the Luhn statements in `Codec/Spec.lean`, under the same names. The
   helper lemmas live in `Codec.Proofs.Luhn`.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
@@ -72,15 +72,15 @@ theorem sumFromRight_range (k : Nat) (L : List Nat) :
     rw [hf]
     simp only [Nat.add_zero, List.getD_cons_zero]
 
-theorem sum_eq_luhnSum (ds : List Nat) : Luhn.sum ds = Spec.luhnSum ds := by
+theorem sum_eq_luhnSum (ds : List Nat) : Luhn.sum ds = Codec.Spec.luhnSum ds := by
   have h := sumFromRight_range 0 ds.reverse
   simp only [Nat.zero_mod, Nat.zero_add, List.length_reverse] at h
-  rw [Luhn.sum, Spec.luhnSum]
+  rw [Luhn.sum, Codec.Spec.luhnSum]
   refine Eq.trans h ?_
   congr 1
   apply List.map_congr_left
   intro i _
-  simp [Spec.luhnShare, Luhn.weigh]
+  simp [Codec.Spec.luhnShare, Luhn.weigh]
 
 /-- Changing one digit, at place `k` from the start of the list, changes
     its share only. -/
@@ -124,11 +124,11 @@ end Codec.Proofs.Luhn
 
 open Codec.Proofs.Luhn
 
-theorem Spec.luhn_valid_iff (ds : List Nat) :
-    Luhn.valid ds = true ↔ (∀ d ∈ ds, d ≤ 9) ∧ Spec.luhnSum ds % 10 = 0 := by
+theorem Codec.Spec.luhn_valid_iff (ds : List Nat) :
+    Luhn.valid ds = true ↔ (∀ d ∈ ds, d ≤ 9) ∧ Codec.Spec.luhnSum ds % 10 = 0 := by
   rw [valid_eq, sum_eq_luhnSum]
 
-theorem Spec.luhn_checkDigit (ds : List Nat) (h : ∀ d ∈ ds, d ≤ 9) :
+theorem Codec.Spec.luhn_checkDigit (ds : List Nat) (h : ∀ d ∈ ds, d ≤ 9) :
     Luhn.checkDigit ds ≤ 9 ∧
       ∀ c, c ≤ 9 → (Luhn.valid (ds ++ [c]) = true ↔ c = Luhn.checkDigit ds) := by
   constructor
@@ -152,7 +152,7 @@ theorem Spec.luhn_checkDigit (ds : List Nat) (h : ∀ d ∈ ds, d ≤ 9) :
     · intro h2
       exact ⟨hall, by omega⟩
 
-theorem Spec.luhn_single_error (l r : List Nat) (a b : Nat)
+theorem Codec.Spec.luhn_single_error (l r : List Nat) (a b : Nat)
     (h : Luhn.valid (l ++ a :: r) = true) (hb : b ≤ 9) (hab : a ≠ b) :
     Luhn.valid (l ++ b :: r) = false := by
   rw [valid_eq] at h
@@ -169,7 +169,7 @@ theorem Spec.luhn_single_error (l r : List Nat) (a b : Nat)
     have := weigh_inj (decide (r.length % 2 = 1)) a b ha hb
     omega
 
-theorem Spec.luhn_adjacent_swap (l r : List Nat) (a b : Nat)
+theorem Codec.Spec.luhn_adjacent_swap (l r : List Nat) (a b : Nat)
     (h : Luhn.valid (l ++ a :: b :: r) = true) (hab : a ≠ b)
     (h09 : ¬ (a = 0 ∧ b = 9)) (h90 : ¬ (a = 9 ∧ b = 0)) :
     Luhn.valid (l ++ b :: a :: r) = false := by
@@ -186,13 +186,13 @@ theorem Spec.luhn_adjacent_swap (l r : List Nat) (a b : Nat)
     have hm := swap_digits _ _ (parity_succ_ne r.length) a b ha hb (by omega)
     omega
 
-theorem Spec.luhn_swap_09 (l r : List Nat) :
+theorem Codec.Spec.luhn_swap_09 (l r : List Nat) :
     Luhn.valid (l ++ 0 :: 9 :: r) = Luhn.valid (l ++ 9 :: 0 :: r) := by
   have hs : Luhn.sum (l ++ 0 :: 9 :: r) = Luhn.sum (l ++ 9 :: 0 :: r) := by
     rw [sum_pair, sum_pair l r 9 0, weigh_zero, weigh_zero, weigh_nine, weigh_nine]
   simp [Luhn.valid, hs]
 
-theorem Spec.luhn_vectors :
+theorem Codec.Spec.luhn_vectors :
     Luhn.valid [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = true ∧
     Luhn.checkDigit [7, 9, 9, 2, 7, 3, 9, 8, 7, 1] = 3 ∧
     Luhn.valid [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 4] = false ∧

@@ -2,15 +2,15 @@
   The definitions the specification uses, written from the standards,
   independently of the code in `Codec/`, with one exception: the PEM
   definitions take their base 64 from `Base64.encode`, which the base 64
-  statements in `Spec.lean` pin down exactly. Part of the approved
-  specification, with `Spec.lean`.
+  statements in `Codec/Spec.lean` pin down exactly. Part of the approved
+  specification, with `Codec/Spec.lean`.
 
   Both the challenge file and the proofs import this file, so each
   statement means the same thing on both sides. The `example`s pin each
   table character by character, by code point, and check the
   definitions against the examples of RFC 4648, section 9, and the
   CRC-32 check value. A mistake in either fails the build. The test
-  vectors of RFC 4648, section 10, are theorems in `Spec.lean`.
+  vectors of RFC 4648, section 10, are theorems in `Codec/Spec.lean`.
 -/
 
 import Codec
@@ -20,14 +20,14 @@ open Codec
 /-! ## Shared -/
 
 /-- The bytes of an ASCII string, for test vectors. -/
-def Spec.ascii (s : String) : List UInt8 :=
+def Codec.Spec.ascii (s : String) : List UInt8 :=
   s.toList.map fun c => c.toNat.toUInt8
 
 /-- ASCII lowercase: `A` to `Z` become `a` to `z`; nothing else changes. -/
-def Spec.asciiLower (c : Char) : Char :=
+def Codec.Spec.asciiLower (c : Char) : Char :=
   if 'A' ≤ c ∧ c ≤ 'Z' then Char.ofNat (c.toNat + 32) else c
 
-example : "AZaz09@[`{".toList.map Spec.asciiLower = "azaz09@[`{".toList := by decide
+example : "AZaz09@[`{".toList.map Codec.Spec.asciiLower = "azaz09@[`{".toList := by decide
 
 /-! ## Hex
 
@@ -35,12 +35,12 @@ Each byte becomes two digits from `0123456789abcdef`, the high half
 first. Decoding reads digits in either case and accepts nothing else. -/
 
 /-- The hex digits, lowercase, as Python's `bytes.hex()` writes them. -/
-def Spec.hexDigits : List Char := "0123456789abcdef".toList
+def Codec.Spec.hexDigits : List Char := "0123456789abcdef".toList
 
-def Spec.hexDigit (n : Nat) : Char := Spec.hexDigits.getD n '?'
+def Codec.Spec.hexDigit (n : Nat) : Char := Codec.Spec.hexDigits.getD n '?'
 
 -- Digits 0 to 9, then a to f, by code point.
-example : Spec.hexDigits.map Char.toNat =
+example : Codec.Spec.hexDigits.map Char.toNat =
     (List.range 10).map (· + 48) ++ (List.range 6).map (· + 97) := by decide
 
 /-! ## Base 64
@@ -48,29 +48,29 @@ example : Spec.hexDigits.map Char.toNat =
 RFC 4648, section 4. -/
 
 /-- RFC 4648, Table 1: the base 64 alphabet, values 0 to 63. -/
-def Spec.base64Table : List Char :=
+def Codec.Spec.base64Table : List Char :=
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toList
 
-def Spec.base64Char (n : Nat) : Char := Spec.base64Table.getD n '?'
+def Codec.Spec.base64Char (n : Nat) : Char := Codec.Spec.base64Table.getD n '?'
 
 /-- RFC 4648, section 4: a 24-bit group, high bit first, read as four
     6-bit values, each written as its character in Table 1. -/
-def Spec.base64Group (n : Nat) : List Char :=
-  [Spec.base64Char (n / 2 ^ 18 % 64), Spec.base64Char (n / 2 ^ 12 % 64),
-   Spec.base64Char (n / 2 ^ 6 % 64), Spec.base64Char (n % 64)]
+def Codec.Spec.base64Group (n : Nat) : List Char :=
+  [Codec.Spec.base64Char (n / 2 ^ 18 % 64), Codec.Spec.base64Char (n / 2 ^ 12 % 64),
+   Codec.Spec.base64Char (n / 2 ^ 6 % 64), Codec.Spec.base64Char (n % 64)]
 
 -- RFC 4648, Table 1, by code point: A to Z, a to z, 0 to 9, then + and /.
-example : Spec.base64Table.map Char.toNat =
+example : Codec.Spec.base64Table.map Char.toNat =
     (List.range 26).map (· + 65) ++ (List.range 26).map (· + 97) ++
       (List.range 10).map (· + 48) ++ [43, 47] := by decide
 
 -- RFC 4648, section 9: the bytes 14 fb 9c 03 d9 7e are "FPucA9l+",
 -- 14 fb 9c 03 d9 are "FPucA9k=", and 14 fb 9c 03 are "FPucAw==".
-example : Spec.base64Group 0x14fb9c ++ Spec.base64Group 0x03d97e = "FPucA9l+".toList := by
+example : Codec.Spec.base64Group 0x14fb9c ++ Codec.Spec.base64Group 0x03d97e = "FPucA9l+".toList := by
   decide
-example : Spec.base64Group 0x14fb9c ++ (Spec.base64Group 0x03d900).take 3 ++ ['='] =
+example : Codec.Spec.base64Group 0x14fb9c ++ (Codec.Spec.base64Group 0x03d900).take 3 ++ ['='] =
     "FPucA9k=".toList := by decide
-example : Spec.base64Group 0x14fb9c ++ (Spec.base64Group 0x030000).take 2 ++ ['=', '='] =
+example : Codec.Spec.base64Group 0x14fb9c ++ (Codec.Spec.base64Group 0x030000).take 2 ++ ['=', '='] =
     "FPucAw==".toList := by decide
 
 /-! ## CRC-32
@@ -80,27 +80,27 @@ at a time. -/
 
 /-- One bit: if the low bit is one, shift right and xor in the reflected
     polynomial 0xEDB88320; otherwise just shift right. -/
-def Spec.crcBit (c : UInt32) : UInt32 :=
+def Codec.Spec.crcBit (c : UInt32) : UInt32 :=
   if c % 2 = 1 then c / 2 ^^^ 0xEDB88320 else c / 2
 
 /-- One byte: xor it into the low end of the register, then eight bits. -/
-def Spec.crcByte (c : UInt32) (b : UInt8) : UInt32 :=
-  Nat.repeat Spec.crcBit 8 (c ^^^ b.toUInt32)
+def Codec.Spec.crcByte (c : UInt32) (b : UInt8) : UInt32 :=
+  Nat.repeat Codec.Spec.crcBit 8 (c ^^^ b.toUInt32)
 
 /-- The register starts as all ones, takes each byte in order, and is
     inverted at the end. -/
-def Spec.crc32 (bs : List UInt8) : UInt32 :=
-  bs.foldl Spec.crcByte 0xFFFFFFFF ^^^ 0xFFFFFFFF
+def Codec.Spec.crc32 (bs : List UInt8) : UInt32 :=
+  bs.foldl Codec.Spec.crcByte 0xFFFFFFFF ^^^ 0xFFFFFFFF
 
 -- The standard check value: the CRC-32 of "123456789" is 0xCBF43926.
-example : Spec.crc32 (Spec.ascii "123456789") = 0xCBF43926 := by decide +kernel
+example : Codec.Spec.crc32 (Codec.Spec.ascii "123456789") = 0xCBF43926 := by decide +kernel
 
 /-- Four bytes, low byte first, as gzip stores its CRC. -/
-def Spec.le32 (x : UInt32) : List UInt8 :=
+def Codec.Spec.le32 (x : UInt32) : List UInt8 :=
   [(x.toNat % 2 ^ 8).toUInt8, (x.toNat / 2 ^ 8 % 2 ^ 8).toUInt8,
    (x.toNat / 2 ^ 16 % 2 ^ 8).toUInt8, (x.toNat / 2 ^ 24).toUInt8]
 
-example : Spec.le32 0xCBF43926 = [0x26, 0x39, 0xF4, 0xCB] := by decide
+example : Codec.Spec.le32 0xCBF43926 = [0x26, 0x39, 0xF4, 0xCB] := by decide
 
 /-! ## Percent-encoding
 
@@ -129,57 +129,57 @@ Section 2.4: "Implementations must not percent-encode or decode the same
 string more than once". -/
 
 /-- The unreserved characters of section 2.3. -/
-def Spec.unreservedChars : List Char :=
+def Codec.Spec.unreservedChars : List Char :=
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".toList
 
 -- `A` to `Z`, `a` to `z`, `0` to `9`, then `-`, `.`, `_` and `~`, by code point.
-example : Spec.unreservedChars.map Char.toNat =
+example : Codec.Spec.unreservedChars.map Char.toNat =
     (List.range 26).map (· + 65) ++ (List.range 26).map (· + 97) ++
       (List.range 10).map (· + 48) ++ [45, 46, 95, 126] := by decide
 
 /-- The hex digits, uppercase, as section 2.1 recommends producers write
     them. -/
-def Spec.upperHexDigits : List Char := "0123456789ABCDEF".toList
+def Codec.Spec.upperHexDigits : List Char := "0123456789ABCDEF".toList
 
 -- Digits 0 to 9, then A to F, by code point.
-example : Spec.upperHexDigits.map Char.toNat =
+example : Codec.Spec.upperHexDigits.map Char.toNat =
     (List.range 10).map (· + 48) ++ (List.range 6).map (· + 65) := by decide
 
 /-- How a producer writes one byte: an unreserved character as itself,
     and any other byte as `%` and two uppercase digits, the high half
     first. -/
-def Spec.pctByte (b : UInt8) : List Char :=
-  if Char.ofNat b.toNat ∈ Spec.unreservedChars then [Char.ofNat b.toNat]
-  else ['%', Spec.upperHexDigits.getD (b.toNat / 16) '?',
-    Spec.upperHexDigits.getD (b.toNat % 16) '?']
+def Codec.Spec.pctByte (b : UInt8) : List Char :=
+  if Char.ofNat b.toNat ∈ Codec.Spec.unreservedChars then [Char.ofNat b.toNat]
+  else ['%', Codec.Spec.upperHexDigits.getD (b.toNat / 16) '?',
+    Codec.Spec.upperHexDigits.getD (b.toNat % 16) '?']
 
 /-- The percent-encoding of a byte string, byte by byte. -/
-def Spec.pctEncode (bs : List UInt8) : List Char :=
-  (bs.map Spec.pctByte).flatten
+def Codec.Spec.pctEncode (bs : List UInt8) : List Char :=
+  (bs.map Codec.Spec.pctByte).flatten
 
 -- The examples of sections 2.1 and 2.5: the space, "A", LATIN CAPITAL
 -- LETTER A WITH GRAVE (C3 80 in UTF-8) and KATAKANA LETTER A (E3 82 A2).
-example : Spec.pctEncode [0x20] = "%20".toList := by decide
-example : Spec.pctEncode (Spec.ascii "A") = "A".toList := by decide
-example : Spec.pctEncode [0xC3, 0x80] = "%C3%80".toList := by decide
-example : Spec.pctEncode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList := by decide
+example : Codec.Spec.pctEncode [0x20] = "%20".toList := by decide
+example : Codec.Spec.pctEncode (Codec.Spec.ascii "A") = "A".toList := by decide
+example : Codec.Spec.pctEncode [0xC3, 0x80] = "%C3%80".toList := by decide
+example : Codec.Spec.pctEncode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList := by decide
 
-/-- How percent-encoded text reads: `Spec.PctReads cs bs` says the text
+/-- How percent-encoded text reads: `Codec.Spec.PctReads cs bs` says the text
     `cs` reads as the bytes `bs`. A `%` and two hex digits, in either
     case, read as the byte they spell, the high half first. Any other
     US-ASCII character but `%` reads as its own code. Nothing else
     reads: not a `%` without two hex digits after it, and not a
     character outside US-ASCII. What a `%` and its digits spell is never
     read again. -/
-inductive Spec.PctReads : List Char → List UInt8 → Prop where
-  | nil : Spec.PctReads [] []
+inductive Codec.Spec.PctReads : List Char → List UInt8 → Prop where
+  | nil : Codec.Spec.PctReads [] []
   | escape {hi lo : Char} {b : UInt8} {rest : List Char} {bs : List UInt8} :
-      Spec.asciiLower hi = Spec.hexDigit (b.toNat / 16) →
-      Spec.asciiLower lo = Spec.hexDigit (b.toNat % 16) →
-      Spec.PctReads rest bs → Spec.PctReads ('%' :: hi :: lo :: rest) (b :: bs)
+      Codec.Spec.asciiLower hi = Codec.Spec.hexDigit (b.toNat / 16) →
+      Codec.Spec.asciiLower lo = Codec.Spec.hexDigit (b.toNat % 16) →
+      Codec.Spec.PctReads rest bs → Codec.Spec.PctReads ('%' :: hi :: lo :: rest) (b :: bs)
   | char {c : Char} {rest : List Char} {bs : List UInt8} :
       c ≠ '%' → c.toNat < 0x80 →
-      Spec.PctReads rest bs → Spec.PctReads (c :: rest) (c.toNat.toUInt8 :: bs)
+      Codec.Spec.PctReads rest bs → Codec.Spec.PctReads (c :: rest) (c.toNat.toUInt8 :: bs)
 
 /-! ## PEM
 
@@ -220,65 +220,65 @@ unused bits are not zero, which strict base 64 refuses: here the base 64
 is exactly `Base64.encode` of the data. -/
 
 /-- `labelchar`: printable US-ASCII, `!` to `~`, except `-`. -/
-def Spec.labelChar (c : Char) : Prop :=
+def Codec.Spec.labelChar (c : Char) : Prop :=
   (0x21 ≤ c.toNat ∧ c.toNat ≤ 0x2C) ∨ (0x2E ≤ c.toNat ∧ c.toNat ≤ 0x7E)
 
 /-- `*( ["-" / SP] labelchar )`: label characters, each of which may
     follow one `-` or space. -/
-inductive Spec.LabelTail : List Char → Prop where
-  | nil : Spec.LabelTail []
+inductive Codec.Spec.LabelTail : List Char → Prop where
+  | nil : Codec.Spec.LabelTail []
   | char {c : Char} {rest : List Char} :
-      Spec.labelChar c → Spec.LabelTail rest → Spec.LabelTail (c :: rest)
+      Codec.Spec.labelChar c → Codec.Spec.LabelTail rest → Codec.Spec.LabelTail (c :: rest)
   | sep {s c : Char} {rest : List Char} :
-      (s = '-' ∨ s = ' ') → Spec.labelChar c → Spec.LabelTail rest →
-      Spec.LabelTail (s :: c :: rest)
+      (s = '-' ∨ s = ' ') → Codec.Spec.labelChar c → Codec.Spec.LabelTail rest →
+      Codec.Spec.LabelTail (s :: c :: rest)
 
 /-- `label = [ labelchar *( ["-" / SP] labelchar ) ]`. -/
-def Spec.Label (l : List Char) : Prop :=
-  l = [] ∨ ∃ c rest, l = c :: rest ∧ Spec.labelChar c ∧ Spec.LabelTail rest
+def Codec.Spec.Label (l : List Char) : Prop :=
+  l = [] ∨ ∃ c rest, l = c :: rest ∧ Codec.Spec.labelChar c ∧ Codec.Spec.LabelTail rest
 
 /-- `eol = CRLF / CR / LF`. -/
-def Spec.Eol (e : List Char) : Prop :=
+def Codec.Spec.Eol (e : List Char) : Prop :=
   e = ['\r', '\n'] ∨ e = ['\r'] ∨ e = ['\n']
 
 /-- The text `text` is the lines `ls`, each followed by an `eol`. No
     line holds a CR or an LF. -/
-inductive Spec.LinesEol : List Char → List (List Char) → Prop where
-  | nil : Spec.LinesEol [] []
+inductive Codec.Spec.LinesEol : List Char → List (List Char) → Prop where
+  | nil : Codec.Spec.LinesEol [] []
   | cons {l e rest : List Char} {ls : List (List Char)} :
-      '\r' ∉ l → '\n' ∉ l → Spec.Eol e → Spec.LinesEol rest ls →
-      Spec.LinesEol (l ++ e ++ rest) (l :: ls)
+      '\r' ∉ l → '\n' ∉ l → Codec.Spec.Eol e → Codec.Spec.LinesEol rest ls →
+      Codec.Spec.LinesEol (l ++ e ++ rest) (l :: ls)
 
 /-- `*base64fullline strictbase64finl`, without the line ends: the base
     64 text cut into lines of 64 characters, the last one at most 64. -/
-def Spec.lines64 (s : List Char) : List (List Char) :=
+def Codec.Spec.lines64 (s : List Char) : List (List Char) :=
   (List.range ((s.length + 63) / 64)).map fun i => (s.drop (64 * i)).take 64
 
 /-- The lines of the message for `label` and `data`, without their line
     ends: `preeb`, the base 64 of the data, `posteb`. The END line has
     the same label as the BEGIN line. -/
-def Spec.pemLines (label : List Char) (data : List UInt8) : List (List Char) :=
-  ["-----BEGIN ".toList ++ label ++ "-----".toList] ++ Spec.lines64 (Base64.encode data) ++
+def Codec.Spec.pemLines (label : List Char) (data : List UInt8) : List (List Char) :=
+  ["-----BEGIN ".toList ++ label ++ "-----".toList] ++ Codec.Spec.lines64 (Base64.encode data) ++
     ["-----END ".toList ++ label ++ "-----".toList]
 
 /-- What a generator writes: each line, then LF. -/
-def Spec.pemText (label : List Char) (data : List UInt8) : List Char :=
-  ((Spec.pemLines label data).map (· ++ ['\n'])).flatten
+def Codec.Spec.pemText (label : List Char) (data : List UInt8) : List Char :=
+  ((Codec.Spec.pemLines label data).map (· ++ ['\n'])).flatten
 
 /-- `text` is a message in the strict form, for this label and data:
     the label is a `label`, and the text is the message's lines, each
     followed by any `eol`. -/
-def Spec.StrictPem (text label : List Char) (data : List UInt8) : Prop :=
-  Spec.Label label ∧ Spec.LinesEol text (Spec.pemLines label data)
+def Codec.Spec.StrictPem (text label : List Char) (data : List UInt8) : Prop :=
+  Codec.Spec.Label label ∧ Codec.Spec.LinesEol text (Codec.Spec.pemLines label data)
 
 -- 48 bytes are one full line of 64 characters; 49 bytes need a second.
-example : (Spec.lines64 (List.replicate 64 'A')).map List.length = [64] := by decide
-example : (Spec.lines64 (List.replicate 68 'A')).map List.length = [64, 4] := by decide
-example : Spec.lines64 [] = [] := by decide
+example : (Codec.Spec.lines64 (List.replicate 64 'A')).map List.length = [64] := by decide
+example : (Codec.Spec.lines64 (List.replicate 68 'A')).map List.length = [64, 4] := by decide
+example : Codec.Spec.lines64 [] = [] := by decide
 
 /-- The data of RFC 7468, Figure 15 (a subject public key info), as the
     base 64 there spells it. -/
-def Spec.figure15 : List UInt8 := [
+def Codec.Spec.figure15 : List UInt8 := [
     0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02,
     0x01, 0x06, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04,
     0x9F, 0x52, 0xE5, 0xC0, 0xB3, 0x7F, 0x28, 0x16, 0x10, 0x45, 0x51, 0xFA,
@@ -301,16 +301,16 @@ sum of the results is a multiple of 10. -/
 /-- The share of digit `d` at place `i` from the right, the check digit
     being place 0: as it is at an even place; doubled at an odd place,
     less 9 when the double is above 9. -/
-def Spec.luhnShare (i d : Nat) : Nat :=
+def Codec.Spec.luhnShare (i d : Nat) : Nat :=
   if i % 2 = 1 then (if 2 * d > 9 then 2 * d - 9 else 2 * d) else d
 
 /-- The Luhn sum: the shares of all the digits. -/
-def Spec.luhnSum (ds : List Nat) : Nat :=
-  ((List.range ds.length).map fun i => Spec.luhnShare i (ds.reverse.getD i 0)).sum
+def Codec.Spec.luhnSum (ds : List Nat) : Nat :=
+  ((List.range ds.length).map fun i => Codec.Spec.luhnShare i (ds.reverse.getD i 0)).sum
 
 -- 79927398713: 3 + 2 + 7 + 7 + 7 + 6 + 2 + 9 + 9 + 9 + 7 (from the
 -- right; 1 8 3 2 9 doubled are 2 16 6 4 18, less 9 above 9: 2 7 6 4 9).
-example : Spec.luhnSum [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = 70 := by decide
+example : Codec.Spec.luhnSum [7, 9, 9, 2, 7, 3, 9, 8, 7, 1, 3] = 70 := by decide
 
 /-! ## IBAN
 
@@ -324,39 +324,39 @@ are computed with 00 in their place, as 98 less that remainder, so they
 run from 02 to 98. The lengths and formats of each country's BBAN, in
 the SWIFT IBAN Registry, are not checked. -/
 
-def Spec.ibanDigit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
+def Codec.Spec.ibanDigit (c : Char) : Prop := '0' ≤ c ∧ c ≤ '9'
 
-def Spec.ibanLetter (c : Char) : Prop := 'A' ≤ c ∧ c ≤ 'Z'
+def Codec.Spec.ibanLetter (c : Char) : Prop := 'A' ≤ c ∧ c ≤ 'Z'
 
 /-- A digit's value, or a letter's: A = 10 to Z = 35. -/
-def Spec.ibanValue (c : Char) : Nat :=
+def Codec.Spec.ibanValue (c : Char) : Nat :=
   if '0' ≤ c ∧ c ≤ '9' then c.toNat - 48 else c.toNat - 55
 
 /-- The decimal digits a character becomes: one for a digit, two for a
     letter. -/
-def Spec.ibanDigits (c : Char) : List Nat :=
-  if Spec.ibanValue c < 10 then [Spec.ibanValue c] else [Spec.ibanValue c / 10, Spec.ibanValue c % 10]
+def Codec.Spec.ibanDigits (c : Char) : List Nat :=
+  if Codec.Spec.ibanValue c < 10 then [Codec.Spec.ibanValue c] else [Codec.Spec.ibanValue c / 10, Codec.Spec.ibanValue c % 10]
 
 /-- The number decimal digits write, most significant first. -/
-def Spec.decimal (ds : List Nat) : Nat :=
+def Codec.Spec.decimal (ds : List Nat) : Nat :=
   ds.foldl (fun n d => 10 * n + d) 0
 
 /-- The number a string of letters and digits becomes. -/
-def Spec.ibanNumber (cs : List Char) : Nat :=
-  Spec.decimal (cs.flatMap Spec.ibanDigits)
+def Codec.Spec.ibanNumber (cs : List Char) : Nat :=
+  Codec.Spec.decimal (cs.flatMap Codec.Spec.ibanDigits)
 
 /-- Two letters, two digits, then a BBAN of 1 to 30 letters and digits. -/
-def Spec.IbanShape (s : List Char) : Prop :=
+def Codec.Spec.IbanShape (s : List Char) : Prop :=
   ∃ c0 c1 k0 k1 bban, s = c0 :: c1 :: k0 :: k1 :: bban ∧
-    Spec.ibanLetter c0 ∧ Spec.ibanLetter c1 ∧ Spec.ibanDigit k0 ∧ Spec.ibanDigit k1 ∧
-    1 ≤ bban.length ∧ bban.length ≤ 30 ∧ ∀ c ∈ bban, Spec.ibanDigit c ∨ Spec.ibanLetter c
+    Codec.Spec.ibanLetter c0 ∧ Codec.Spec.ibanLetter c1 ∧ Codec.Spec.ibanDigit k0 ∧ Codec.Spec.ibanDigit k1 ∧
+    1 ≤ bban.length ∧ bban.length ≤ 30 ∧ ∀ c ∈ bban, Codec.Spec.ibanDigit c ∨ Codec.Spec.ibanLetter c
 
 /-- An IBAN that passes the check: the right shape, and the number of
     the string with its first four characters moved to the end leaves 1
     when divided by 97. -/
-def Spec.IbanValid (s : List Char) : Prop :=
-  Spec.IbanShape s ∧ Spec.ibanNumber (s.drop 4 ++ s.take 4) % 97 = 1
+def Codec.Spec.IbanValid (s : List Char) : Prop :=
+  Codec.Spec.IbanShape s ∧ Codec.Spec.ibanNumber (s.drop 4 ++ s.take 4) % 97 = 1
 
 -- The letters become 10 to 35, and "WEST" becomes 32 14 28 29.
-example : ("AZWEST".toList.flatMap Spec.ibanDigits) =
+example : ("AZWEST".toList.flatMap Codec.Spec.ibanDigits) =
     [1, 0, 3, 5, 3, 2, 1, 4, 2, 8, 2, 9] := by decide

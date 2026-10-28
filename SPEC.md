@@ -1,6 +1,6 @@
 # Specification: codec
 
-Five small codecs: hex, base 64, CRC-32 with a frame around a message, percent-encoding, and PEM; and two check digits, Luhn and IBAN. A reviewer who did not write this specification approves it, together with `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
+Five small codecs: hex, base 64, CRC-32 with a frame around a message, percent-encoding, and PEM; and two check digits, Luhn and IBAN. A reviewer who did not write this specification approves it, together with `Codec/Spec.lean`, `Codec/Spec/Defs.lean`, and the other files `bar.toml` lists.
 
 Bytes are `List UInt8` and text is `List Char`. The command-line tool converts at the edges.
 
@@ -73,47 +73,47 @@ The command-line tool in `Main.lean` reads one request per line and prints one a
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use, written from the standards and checked against their test values, are in `Spec/Defs.lean`.
+Each property is a theorem in `Codec/Spec.lean`, under the name given. The definitions the statements use, written from the standards and checked against their test values, are in `Codec/Spec/Defs.lean`.
 
 | Property | Theorem |
 |----------|---------|
-| Hex encodes each byte as two digits, high half first, from `0123456789abcdef`. | `Spec.hex_encode_nil`, `Spec.hex_encode_cons` |
-| Hex decoding gives back what was encoded. | `Spec.hex_decode_encode` |
-| Hex decoding accepts any mix of upper and lower case. | `Spec.hex_decode_any_case` |
-| Hex decoding accepts nothing that is not an encoding, up to case. | `Spec.hex_encode_decode` |
-| Hex matches the test vectors of RFC 4648, section 10, in lowercase, and decodes them as the RFC writes them. | `Spec.hex_rfc4648_vectors` |
-| Base 64 encodes three bytes as one group of four characters from RFC 4648 Table 1. | `Spec.base64_encode_nil`, `Spec.base64_encode_three` |
-| Base 64 encodes a final one or two bytes with zero fill and `==` or `=` padding. | `Spec.base64_encode_one`, `Spec.base64_encode_two` |
-| Base 64 decoding gives back what was encoded. | `Spec.base64_decode_encode` |
-| Base 64 decoding accepts exactly the encodings and nothing else. | `Spec.base64_encode_decode` |
-| Base 64 encoding matches the test vectors of RFC 4648, section 10. | `Spec.base64_rfc4648_vectors` |
-| The table-driven CRC-32 equals the bit-at-a-time definition. | `Spec.crc32_eq` |
-| The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Spec.crc32_check` |
-| A frame is the message followed by its CRC-32, low byte first. | `Spec.frame_layout` |
-| Unframing a frame gives back the message. | `Spec.unframe_frame` |
-| Unframing accepts nothing that is not a frame. | `Spec.frame_unframe` |
-| Percent-encoding writes each byte as `Spec.pctByte` says: an unreserved character as itself, any other byte as `%` and two uppercase digits. | `Spec.percent_encode_eq` |
-| Percent-decoding reads exactly what `Spec.PctReads` allows, as it says. | `Spec.percent_decode_iff` |
-| Percent-decoding gives back what was encoded. | `Spec.percent_decode_encode` |
-| The examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2; the reserved and unreserved characters; decoding once; and text the decoder refuses. | `Spec.percent_vectors` |
-| PEM encoding gives `Spec.pemText` for a label the `label` rule allows, and fails on any other label. | `Spec.pem_encode_iff` |
-| PEM decoding gives a label and data exactly when `Spec.StrictPem` holds: the text is the message's lines, each followed by any `eol`. | `Spec.pem_decode_iff` |
-| PEM decoding gives back what was encoded. | `Spec.pem_decode_encode` |
-| `Luhn.valid` decides the Luhn sum's rule. | `Spec.luhn_valid_iff` |
-| The check digit is a digit, and the only one that makes the payload valid. | `Spec.luhn_checkDigit` |
-| One digit typed wrong is caught. | `Spec.luhn_single_error` |
-| Two adjacent different digits swapped are caught, unless they are 0 and 9. | `Spec.luhn_adjacent_swap` |
-| An adjacent 0 and 9 swapped is never caught. | `Spec.luhn_swap_09` |
-| 79927398713, its check digit, a wrong check digit, a test card number, and `10`. | `Spec.luhn_vectors` |
-| `Iban.valid` decides `Spec.IbanValid`: the shape, and the rearranged number mod 97 is 1. | `Spec.iban_valid_iff` |
-| `checkDigits` gives exactly the two digits from 02 to 98 that make the IBAN pass. | `Spec.iban_checkDigits_iff` |
-| One digit for another, or one letter for another, is caught. | `Spec.iban_substitution` |
-| Two adjacent digits, or two adjacent letters, swapped are caught. | `Spec.iban_adjacent_swap` |
-| Example IBANs and their check digits; a digit wrong; lower case refused; a letter and a digit swapped, both passing. | `Spec.iban_vectors` |
-| RFC 7468's Figure 15, written exactly as the RFC prints it and read back with CR LF; empty data and an empty label; labels the rule refuses; texts the decoder refuses. | `Spec.pem_vectors` |
+| Hex encodes each byte as two digits, high half first, from `0123456789abcdef`. | `Codec.Spec.hex_encode_nil`, `Codec.Spec.hex_encode_cons` |
+| Hex decoding gives back what was encoded. | `Codec.Spec.hex_decode_encode` |
+| Hex decoding accepts any mix of upper and lower case. | `Codec.Spec.hex_decode_any_case` |
+| Hex decoding accepts nothing that is not an encoding, up to case. | `Codec.Spec.hex_encode_decode` |
+| Hex matches the test vectors of RFC 4648, section 10, in lowercase, and decodes them as the RFC writes them. | `Codec.Spec.hex_rfc4648_vectors` |
+| Base 64 encodes three bytes as one group of four characters from RFC 4648 Table 1. | `Codec.Spec.base64_encode_nil`, `Codec.Spec.base64_encode_three` |
+| Base 64 encodes a final one or two bytes with zero fill and `==` or `=` padding. | `Codec.Spec.base64_encode_one`, `Codec.Spec.base64_encode_two` |
+| Base 64 decoding gives back what was encoded. | `Codec.Spec.base64_decode_encode` |
+| Base 64 decoding accepts exactly the encodings and nothing else. | `Codec.Spec.base64_encode_decode` |
+| Base 64 encoding matches the test vectors of RFC 4648, section 10. | `Codec.Spec.base64_rfc4648_vectors` |
+| The table-driven CRC-32 equals the bit-at-a-time definition. | `Codec.Spec.crc32_eq` |
+| The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Codec.Spec.crc32_check` |
+| A frame is the message followed by its CRC-32, low byte first. | `Codec.Spec.frame_layout` |
+| Unframing a frame gives back the message. | `Codec.Spec.unframe_frame` |
+| Unframing accepts nothing that is not a frame. | `Codec.Spec.frame_unframe` |
+| Percent-encoding writes each byte as `Codec.Spec.pctByte` says: an unreserved character as itself, any other byte as `%` and two uppercase digits. | `Codec.Spec.percent_encode_eq` |
+| Percent-decoding reads exactly what `Codec.Spec.PctReads` allows, as it says. | `Codec.Spec.percent_decode_iff` |
+| Percent-decoding gives back what was encoded. | `Codec.Spec.percent_decode_encode` |
+| The examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2; the reserved and unreserved characters; decoding once; and text the decoder refuses. | `Codec.Spec.percent_vectors` |
+| PEM encoding gives `Codec.Spec.pemText` for a label the `label` rule allows, and fails on any other label. | `Codec.Spec.pem_encode_iff` |
+| PEM decoding gives a label and data exactly when `Codec.Spec.StrictPem` holds: the text is the message's lines, each followed by any `eol`. | `Codec.Spec.pem_decode_iff` |
+| PEM decoding gives back what was encoded. | `Codec.Spec.pem_decode_encode` |
+| `Luhn.valid` decides the Luhn sum's rule. | `Codec.Spec.luhn_valid_iff` |
+| The check digit is a digit, and the only one that makes the payload valid. | `Codec.Spec.luhn_checkDigit` |
+| One digit typed wrong is caught. | `Codec.Spec.luhn_single_error` |
+| Two adjacent different digits swapped are caught, unless they are 0 and 9. | `Codec.Spec.luhn_adjacent_swap` |
+| An adjacent 0 and 9 swapped is never caught. | `Codec.Spec.luhn_swap_09` |
+| 79927398713, its check digit, a wrong check digit, a test card number, and `10`. | `Codec.Spec.luhn_vectors` |
+| `Iban.valid` decides `Codec.Spec.IbanValid`: the shape, and the rearranged number mod 97 is 1. | `Codec.Spec.iban_valid_iff` |
+| `checkDigits` gives exactly the two digits from 02 to 98 that make the IBAN pass. | `Codec.Spec.iban_checkDigits_iff` |
+| One digit for another, or one letter for another, is caught. | `Codec.Spec.iban_substitution` |
+| Two adjacent digits, or two adjacent letters, swapped are caught. | `Codec.Spec.iban_adjacent_swap` |
+| Example IBANs and their check digits; a digit wrong; lower case refused; a letter and a digit swapped, both passing. | `Codec.Spec.iban_vectors` |
+| RFC 7468's Figure 15, written exactly as the RFC prints it and read back with CR LF; empty data and an empty label; labels the rule refuses; texts the decoder refuses. | `Codec.Spec.pem_vectors` |
 
-Together these fix every output but one, named at the end of this paragraph. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Spec.PctReads` gives what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any `eol` in place of each LF: `Spec.StrictPem` gives what it accepts. `Luhn.valid` and `Iban.valid` are decided exactly, `Iban.checkDigits` is given exactly, and `Luhn.checkDigit` is given exactly for a payload of digits; on a payload with a value above 9 it is the one output not fixed. A function that did nothing, or that accepted too much, would fail at least one of them.
+Together these fix every output but one, named at the end of this paragraph. The encoders, `crc32`, and `frame` are given exactly. Each of the hex and base 64 decoders and `unframe` accepts exactly the outputs of its encoder or `frame` (for hex, up to ASCII case), and returns the matching input. The percent-decoder accepts more than the encoder writes, since text may carry reserved characters as they are and escapes in lowercase: `Codec.Spec.PctReads` gives what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any `eol` in place of each LF: `Codec.Spec.StrictPem` gives what it accepts. `Luhn.valid` and `Iban.valid` are decided exactly, `Iban.checkDigits` is given exactly, and `Luhn.checkDigit` is given exactly for a payload of digits; on a payload with a value above 9 it is the one output not fixed. A function that did nothing, or that accepted too much, would fail at least one of them.
 
 ## Oracle
 
-Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest. For PEM, a strict parser written in the tests from the ABNF of RFC 7468 decides every decoding, with the base 64 checked by strict `binascii.a2b_base64` and by encoding it again; where it accepts a text with the `CERTIFICATE` label, Python's `ssl.PEM_cert_to_DER_cert` must read the same data. Encoding is checked against `ssl.DER_cert_to_PEM_cert` for the `CERTIFICATE` label and against an encoder written in the tests for the others. For Luhn and IBAN, the oracle is the rules written in the tests: the Luhn sum, the IBAN shape as a regular expression, and the IBAN number mod 97 computed with Python's integers. A one-off cross-check with python-stdnum, in `tests/CROSS-CHECK.md`, compares them with an independent implementation.
+Python's `binascii.hexlify` and `binascii.unhexlify`, `base64.b64encode` and `binascii.a2b_base64(strict_mode=True)`, `zlib.crc32`, and `urllib.parse.quote(safe="")` and `urllib.parse.unquote_to_bytes`. `unquote_to_bytes` passes a bad escape through, so the tests give it only text that `Codec.Spec.PctReads` accepts, checked with a regular expression; the decoder must refuse the rest. For PEM, a strict parser written in the tests from the ABNF of RFC 7468 decides every decoding, with the base 64 checked by strict `binascii.a2b_base64` and by encoding it again; where it accepts a text with the `CERTIFICATE` label, Python's `ssl.PEM_cert_to_DER_cert` must read the same data. Encoding is checked against `ssl.DER_cert_to_PEM_cert` for the `CERTIFICATE` label and against an encoder written in the tests for the others. For Luhn and IBAN, the oracle is the rules written in the tests: the Luhn sum, the IBAN shape as a regular expression, and the IBAN number mod 97 computed with Python's integers. A one-off cross-check with python-stdnum, in `tests/CROSS-CHECK.md`, compares them with an independent implementation.

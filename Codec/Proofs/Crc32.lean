@@ -1,15 +1,15 @@
 /-
-  Proofs of the Crc32 statements in `Spec.lean`, under the same names.
+  Proofs of the Crc32 statements in `Codec/Spec.lean`, under the same names.
 
   The main fact is that the table-driven `Crc32.update` agrees with the
-  bit-at-a-time `Spec.crcByte`. `step` is linear over xor, so `step8` is
+  bit-at-a-time `Codec.Spec.crcByte`. `step` is linear over xor, so `step8` is
   too; eight steps of a value whose low byte is zero just shift it right
   by eight; hence `step8 x = step8 (x &&& 0xFF) ^^^ (x >>> 8)`, and
   `table[i]! = step8 i` for `i < 256`.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
@@ -129,9 +129,9 @@ theorem table_get (i : Nat) (h : i < 256) : table[i]! = step8 i.toUInt32 := by
   simp [table, h]
 
 
-theorem crcBit_eq : Spec.crcBit = step := by
+theorem crcBit_eq : Codec.Spec.crcBit = step := by
   funext c
-  unfold Spec.crcBit step
+  unfold Codec.Spec.crcBit step
   have h1 : c / (2 : UInt32) = c >>> (1 : UInt32) := by
     apply UInt32.toNat_inj.1
     simp [Nat.shiftRight_eq_div_pow]
@@ -146,8 +146,8 @@ theorem crcBit_eq : Spec.crcBit = step := by
   · have h' : ¬ (c % (2 : UInt32) = 1) := fun h' => h (h2.1 h')
     simp only [h, h', ite_false]
 
-theorem crcByte_eq (c : UInt32) (b : UInt8) : Spec.crcByte c b = step8 (c ^^^ b.toUInt32) := by
-  unfold Spec.crcByte
+theorem crcByte_eq (c : UInt32) (b : UInt8) : Codec.Spec.crcByte c b = step8 (c ^^^ b.toUInt32) := by
+  unfold Codec.Spec.crcByte
   rw [crcBit_eq]
   rfl
 
@@ -168,9 +168,9 @@ theorem update_eq (c : UInt32) (b : UInt8) : update c b = step8 (c ^^^ b.toUInt3
     rw [this, UInt32.xor_zero]
   rw [e1, e2, ← step8_split]
 
-theorem le32_eq (x : UInt32) : le32 x = Spec.le32 x := by
+theorem le32_eq (x : UInt32) : le32 x = Codec.Spec.le32 x := by
   have hx : x.toNat < 2 ^ 32 := x.toNat_lt
-  unfold le32 Spec.le32
+  unfold le32 Codec.Spec.le32
   simp only [List.cons.injEq, and_true]
   refine ⟨?_, ?_, ?_, ?_⟩ <;> apply UInt8.toNat_inj.1 <;>
     simp [Nat.shiftRight_eq_div_pow] <;> omega
@@ -181,32 +181,32 @@ end Codec.Proofs.Crc32
 
 open Codec.Proofs.Crc32 in
 /-- The table-driven code computes the CRC-32 defined above. -/
-theorem Spec.crc32_eq (bs : List UInt8) : Crc32.crc32 bs = Spec.crc32 bs := by
-  unfold Crc32.crc32 Spec.crc32
-  have : Crc32.update = Spec.crcByte := by
+theorem Codec.Spec.crc32_eq (bs : List UInt8) : Crc32.crc32 bs = Codec.Spec.crc32 bs := by
+  unfold Crc32.crc32 Codec.Spec.crc32
+  have : Crc32.update = Codec.Spec.crcByte := by
     funext c b; rw [update_eq, crcByte_eq]
   rw [this]
 
 /-- The code gives the standard check value. -/
-theorem Spec.crc32_check : Crc32.crc32 (Spec.ascii "123456789") = 0xCBF43926 := by
-  rw [Spec.crc32_eq]
+theorem Codec.Spec.crc32_check : Crc32.crc32 (Codec.Spec.ascii "123456789") = 0xCBF43926 := by
+  rw [Codec.Spec.crc32_eq]
   decide +kernel
 
 open Codec.Proofs.Crc32 in
 /-- A frame is the message followed by its CRC-32, low byte first. -/
-theorem Spec.frame_layout (bs : List UInt8) :
-    Crc32.frame bs = bs ++ Spec.le32 (Spec.crc32 bs) := by
-  rw [Crc32.frame, Spec.crc32_eq, le32_eq]
+theorem Codec.Spec.frame_layout (bs : List UInt8) :
+    Crc32.frame bs = bs ++ Codec.Spec.le32 (Codec.Spec.crc32 bs) := by
+  rw [Crc32.frame, Codec.Spec.crc32_eq, le32_eq]
 
 open Codec.Proofs.Crc32 in
 /-- Unframing a frame gives back the message. -/
-theorem Spec.unframe_frame (bs : List UInt8) :
+theorem Codec.Spec.unframe_frame (bs : List UInt8) :
     Crc32.unframe (Crc32.frame bs) = some bs := by
   unfold Crc32.unframe Crc32.frame
   simp [le32_length]
 
 /-- Unframing accepts nothing else: whatever it accepts is a frame. -/
-theorem Spec.frame_unframe (fr bs : List UInt8) :
+theorem Codec.Spec.frame_unframe (fr bs : List UInt8) :
     Crc32.unframe fr = some bs → Crc32.frame bs = fr := by
   unfold Crc32.unframe
   intro h

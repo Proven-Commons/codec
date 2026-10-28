@@ -4,14 +4,14 @@
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
 namespace Codec.Proofs.Pem
 
-theorem pt_isLabelChar_iff (c : Char) : Pem.isLabelChar c = true ↔ Spec.labelChar c := by
-  simp [Pem.isLabelChar, Spec.labelChar]
+theorem pt_isLabelChar_iff (c : Char) : Pem.isLabelChar c = true ↔ Codec.Spec.labelChar c := by
+  simp [Pem.isLabelChar, Codec.Spec.labelChar]
 
 private theorem pt_labelRest_cons (c : Char) (rest : List Char) :
     Pem.labelRest (c :: rest) =
@@ -23,15 +23,15 @@ private theorem pt_labelRest_cons (c : Char) (rest : List Char) :
       else false := by
   rw [Pem.labelRest.eq_def]; rfl
 
-theorem pt_labelRest_iff : ∀ (r : List Char), Pem.labelRest r = true ↔ Spec.LabelTail r
-  | [] => by simp [Pem.labelRest, Spec.LabelTail.nil]
+theorem pt_labelRest_iff : ∀ (r : List Char), Pem.labelRest r = true ↔ Codec.Spec.LabelTail r
+  | [] => by simp [Pem.labelRest, Codec.Spec.LabelTail.nil]
   | c :: rest => by
     have ih := pt_labelRest_iff rest
     rw [pt_labelRest_cons]
     by_cases hc : Pem.isLabelChar c = true
     · rw [ite_eq_left hc, ih]
       constructor
-      · intro h; exact Spec.LabelTail.char ((pt_isLabelChar_iff c).1 hc) h
+      · intro h; exact Codec.Spec.LabelTail.char ((pt_isLabelChar_iff c).1 hc) h
       · intro h
         cases h with
         | char _ h => exact h
@@ -51,7 +51,7 @@ theorem pt_labelRest_iff : ∀ (r : List Char), Pem.labelRest r = true ↔ Spec.
           simp only [Bool.and_eq_true]
           rw [ih', pt_isLabelChar_iff]
           constructor
-          · rintro ⟨h1, h2⟩; exact Spec.LabelTail.sep hs h1 h2
+          · rintro ⟨h1, h2⟩; exact Codec.Spec.LabelTail.sep hs h1 h2
           · intro h
             cases h with
             | char h _ => exact absurd ((pt_isLabelChar_iff c).2 h) hc
@@ -63,26 +63,26 @@ theorem pt_labelRest_iff : ∀ (r : List Char), Pem.labelRest r = true ↔ Spec.
         | char h _ => exact hc ((pt_isLabelChar_iff c).2 h)
         | sep h _ _ => exact hs h
 
-theorem validLabel_iff (l : List Char) : Pem.validLabel l = true ↔ Spec.Label l := by
+theorem validLabel_iff (l : List Char) : Pem.validLabel l = true ↔ Codec.Spec.Label l := by
   cases l with
-  | nil => simp [Pem.validLabel, Spec.Label]
+  | nil => simp [Pem.validLabel, Codec.Spec.Label]
   | cons c rest =>
-    simp only [Pem.validLabel, Bool.and_eq_true, pt_isLabelChar_iff, pt_labelRest_iff, Spec.Label]
+    simp only [Pem.validLabel, Bool.and_eq_true, pt_isLabelChar_iff, pt_labelRest_iff, Codec.Spec.Label]
     constructor
     · intro h; exact Or.inr ⟨c, rest, rfl, h⟩
     · rintro (h | ⟨c', rest', h, h1, h2⟩)
       · cases h
       · cases h; exact ⟨h1, h2⟩
 
-theorem pt_spec_lines64_nil : Spec.lines64 [] = [] := by
-  simp [Spec.lines64]
+theorem pt_spec_lines64_nil : Codec.Spec.lines64 [] = [] := by
+  simp [Codec.Spec.lines64]
 
 theorem pt_spec_lines64_cons (s : List Char) (h : s ≠ []) :
-    Spec.lines64 s = s.take 64 :: Spec.lines64 (s.drop 64) := by
+    Codec.Spec.lines64 s = s.take 64 :: Codec.Spec.lines64 (s.drop 64) := by
   have hlen : 0 < s.length := List.length_pos_iff.2 h
   have hk : (s.length + 63) / 64 = ((s.drop 64).length + 63) / 64 + 1 := by
     rw [List.length_drop]; omega
-  unfold Spec.lines64
+  unfold Codec.Spec.lines64
   rw [hk, List.range_succ_eq_map]
   simp only [List.map_cons, List.map_map, Nat.mul_zero, List.drop_zero]
   congr 1
@@ -93,7 +93,7 @@ theorem pt_spec_lines64_cons (s : List Char) (h : s ≠ []) :
   omega
 
 theorem pt_lines64_fuel : ∀ (fuel : Nat) (s : List Char), s.length ≤ fuel →
-    Pem.lines64 fuel s = Spec.lines64 s
+    Pem.lines64 fuel s = Codec.Spec.lines64 s
   | _, [], _ => by simp [Pem.lines64, pt_spec_lines64_nil]
   | 0, _ :: _, h => by simp at h
   | fuel + 1, c :: cs, h => by
@@ -101,11 +101,11 @@ theorem pt_lines64_fuel : ∀ (fuel : Nat) (s : List Char), s.length ≤ fuel �
     · rw [pt_lines64_fuel fuel _ (by simp at h ⊢; omega)]
     · exact List.cons_ne_nil c cs
 
-theorem lines64_eq (s : List Char) : Pem.lines64 s.length s = Spec.lines64 s :=
+theorem lines64_eq (s : List Char) : Pem.lines64 s.length s = Codec.Spec.lines64 s :=
   pt_lines64_fuel _ _ (Nat.le_refl _)
 
 theorem pt_lines64_fuel_props : ∀ (fuel : Nat) (s : List Char), s.length ≤ fuel →
-    (Spec.lines64 s).flatten = s ∧ ∀ l ∈ Spec.lines64 s, l ≠ []
+    (Codec.Spec.lines64 s).flatten = s ∧ ∀ l ∈ Codec.Spec.lines64 s, l ≠ []
   | _, [], _ => by simp [pt_spec_lines64_nil]
   | 0, _ :: _, h => by simp at h
   | fuel + 1, c :: cs, h => by
@@ -118,15 +118,15 @@ theorem pt_lines64_fuel_props : ∀ (fuel : Nat) (s : List Char), s.length ≤ f
       · subst hl; simp
       · exact ih.2 l hl
 
-theorem flatten_lines64 (s : List Char) : (Spec.lines64 s).flatten = s :=
+theorem flatten_lines64 (s : List Char) : (Codec.Spec.lines64 s).flatten = s :=
   (pt_lines64_fuel_props s.length s (Nat.le_refl _)).1
 
-theorem lines64_ne_nil (s : List Char) : ∀ l ∈ Spec.lines64 s, l ≠ [] :=
+theorem lines64_ne_nil (s : List Char) : ∀ l ∈ Codec.Spec.lines64 s, l ≠ [] :=
   (pt_lines64_fuel_props s.length s (Nat.le_refl _)).2
 
 theorem lines_eq (label : List Char) (data : List UInt8) :
-    Pem.lines label data = Spec.pemLines label data := by
-  unfold Pem.lines Pem.beginLine Pem.endLine Spec.pemLines
+    Pem.lines label data = Codec.Spec.pemLines label data := by
+  unfold Pem.lines Pem.beginLine Pem.endLine Codec.Spec.pemLines
   dsimp only
   rw [lines64_eq]
   rfl
