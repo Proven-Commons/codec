@@ -226,6 +226,9 @@ theorem Spec.pem_vectors :
     Pem.encode " A".toList [] = none ∧
     Pem.encode "A-".toList [] = none ∧
     Pem.encode "\u00c9".toList [] = none ∧
+    Pem.decode "-----BEGIN X-----\n\n-----END X-----\n".toList = none ∧
+    Pem.decode ("-----BEGIN X-----\nAA==\n-----END X-----\n" ++
+      "-----BEGIN X-----\nAA==\n-----END X-----\n").toList = none ∧
     Pem.decode "-----BEGIN X-----\nAA==\n-----END Y-----\n".toList = none ∧
     Pem.decode "-----BEGIN X-----\nAA==\n-----END X-----".toList = none ∧
     Pem.decode "-----BEGIN X-----\nAA== \n-----END X-----\n".toList = none ∧
