@@ -6,40 +6,40 @@ Status: in progress. The specification has not yet been approved by a reviewer a
 
 ## What is proved
 
-The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`, and the proofs in `Proofs/`. Together they fix every output: the encoders and the checksum are given exactly. The hex and base 64 decoders and unframing accept exactly the outputs of their encoder or of framing (for hex, up to ASCII case) and return the matching input. The percent-decoder accepts more than the encoder writes, such as reserved characters as they are and escapes in lowercase, and `Spec.PctReads` gives exactly what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any of the line ends LF, CR, and CR LF, and `Spec.StrictPem` gives exactly what it accepts. `Luhn.valid` and `Iban.valid` are decided exactly, and `Iban.checkDigits` is given exactly. `Luhn.checkDigit` is given exactly for a payload of digits 0 to 9; on a payload with a value above 9, no statement says what it gives.
+The statements are in `Codec/Spec.lean`, the definitions they use in `Codec/Spec/Defs.lean`, and the proofs in `Codec/Proofs/`. Together they fix every output: the encoders and the checksum are given exactly. The hex and base 64 decoders and unframing accept exactly the outputs of their encoder or of framing (for hex, up to ASCII case) and return the matching input. The percent-decoder accepts more than the encoder writes, such as reserved characters as they are and escapes in lowercase, and `Codec.Spec.PctReads` gives exactly what it accepts and what each text reads as. The PEM decoder accepts what the PEM encoder writes, with any of the line ends LF, CR, and CR LF, and `Codec.Spec.StrictPem` gives exactly what it accepts. `Luhn.valid` and `Iban.valid` are decided exactly, and `Iban.checkDigits` is given exactly. `Luhn.checkDigit` is given exactly for a payload of digits 0 to 9; on a payload with a value above 9, no statement says what it gives.
 
 | Claim | Theorem |
 |-------|---------|
-| Hex writes each byte as two digits, high half first, from `0123456789abcdef`. | `Spec.hex_encode_nil`, `Spec.hex_encode_cons` |
-| Hex decoding gives back what was encoded. | `Spec.hex_decode_encode` |
-| Hex decoding accepts any mix of upper and lower case. | `Spec.hex_decode_any_case` |
-| Hex decoding accepts nothing that is not an encoding, up to case. | `Spec.hex_encode_decode` |
-| Hex matches the test vectors of RFC 4648, section 10: encoding gives them in lowercase, and decoding reads them as the RFC writes them, in uppercase. | `Spec.hex_rfc4648_vectors` |
-| Base 64 writes three bytes as one group of four characters from RFC 4648, Table 1. | `Spec.base64_encode_nil`, `Spec.base64_encode_three` |
-| Base 64 writes a final one or two bytes with zero fill and `==` or `=` padding, as RFC 4648 section 4 says. | `Spec.base64_encode_one`, `Spec.base64_encode_two` |
-| Base 64 decoding gives back what was encoded. | `Spec.base64_decode_encode` |
-| Base 64 decoding accepts exactly the encodings and nothing else. | `Spec.base64_encode_decode` |
-| Base 64 matches the test vectors of RFC 4648, section 10. | `Spec.base64_rfc4648_vectors` |
-| The table-driven CRC-32 equals the CRC-32 defined one bit at a time. | `Spec.crc32_eq` |
-| The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Spec.crc32_check` |
-| A frame is the message followed by its CRC-32, low byte first. | `Spec.frame_layout` |
-| Unframing a frame gives back the message. | `Spec.unframe_frame` |
-| Unframing accepts nothing that is not a frame. | `Spec.frame_unframe` |
-| Percent-encoding keeps the unreserved characters of RFC 3986, section 2.3, and writes every other byte as `%` and two uppercase digits, as section 2.1 recommends. | `Spec.percent_encode_eq` |
-| Percent-decoding reads `%` and two hex digits (the `pct-encoded` rule of section 2.1), in either case, as one byte, and any other US-ASCII character but `%` as itself. It does not check which characters a URI allows, so a space or a control character reads as itself. It refuses a `%` without two hex digits after it, and any character outside US-ASCII, rather than passing them through. | `Spec.percent_decode_iff` |
-| Percent-decoding gives back what was encoded. | `Spec.percent_decode_encode` |
-| Percent-encoding matches the examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2, and decodes once: `%252E` decodes to the text `%2E`, not to a dot. | `Spec.percent_vectors` |
-| PEM encoding writes the strict form of RFC 7468 (Figure 3): `-----BEGIN label-----`, the base 64 of the data in lines of 64 characters with the last at most 64, and `-----END label-----`, each line ending in LF. For empty data, which that form cannot express, it writes the BEGIN and END lines alone (see What is not proved). It refuses a label that the `label` rule of section 3 does not allow. | `Spec.pem_encode_iff` |
-| PEM decoding reads exactly one message in the strict form, or for empty data the BEGIN and END lines alone, with each line ending in LF, CR, or CR LF, and gives its label and data. So it refuses a different label on the END line, blanks, headers, text before or after the message, lines of another length, and base 64 that is not exactly the encoding of the data. | `Spec.pem_decode_iff` |
-| PEM decoding gives back the label and data that were encoded. | `Spec.pem_decode_encode` |
-| Luhn: `valid` decides the rule (every second digit from the right doubled, less 9 above 9, the sum a multiple of 10), and, for a payload of digits, the check digit is the one digit that makes it valid. | `Spec.luhn_valid_iff`, `Spec.luhn_checkDigit` |
-| Luhn catches any one digit typed wrong, and any two adjacent different digits typed in the wrong order, except 0 and 9. | `Spec.luhn_single_error`, `Spec.luhn_adjacent_swap` |
-| Among adjacent swaps, Luhn misses only one: an adjacent 0 and 9 swapped is never caught. | `Spec.luhn_swap_09` |
-| Luhn gives the common worked example, 79927398713, and a test card number. | `Spec.luhn_vectors` |
-| IBAN: `valid` decides the check of ISO 13616 by ISO 7064 MOD 97-10 (the shape, and the rearranged number mod 97), and `checkDigits` gives exactly the two digits from 02 to 98 that make an IBAN pass. | `Spec.iban_valid_iff`, `Spec.iban_checkDigits_iff` |
-| IBAN catches one digit typed for another or one letter for another, and two adjacent digits or two adjacent letters typed in the wrong order. | `Spec.iban_substitution`, `Spec.iban_adjacent_swap` |
-| IBAN gives the SWIFT registry's UK example and Germany's, France's and Norway's, and their check digits; and its blind spot: a letter and a digit swapped, `4B1` for `41B`, gives another IBAN that passes. | `Spec.iban_vectors` |
-| PEM encoding writes RFC 7468's Figure 15 exactly as the RFC prints it, and decoding reads it back with CR LF line ends; empty data, an empty label, labels the rule refuses, and texts the decoder refuses. | `Spec.pem_vectors` |
+| Hex writes each byte as two digits, high half first, from `0123456789abcdef`. | `Codec.Spec.hex_encode_nil`, `Codec.Spec.hex_encode_cons` |
+| Hex decoding gives back what was encoded. | `Codec.Spec.hex_decode_encode` |
+| Hex decoding accepts any mix of upper and lower case. | `Codec.Spec.hex_decode_any_case` |
+| Hex decoding accepts nothing that is not an encoding, up to case. | `Codec.Spec.hex_encode_decode` |
+| Hex matches the test vectors of RFC 4648, section 10: encoding gives them in lowercase, and decoding reads them as the RFC writes them, in uppercase. | `Codec.Spec.hex_rfc4648_vectors` |
+| Base 64 writes three bytes as one group of four characters from RFC 4648, Table 1. | `Codec.Spec.base64_encode_nil`, `Codec.Spec.base64_encode_three` |
+| Base 64 writes a final one or two bytes with zero fill and `==` or `=` padding, as RFC 4648 section 4 says. | `Codec.Spec.base64_encode_one`, `Codec.Spec.base64_encode_two` |
+| Base 64 decoding gives back what was encoded. | `Codec.Spec.base64_decode_encode` |
+| Base 64 decoding accepts exactly the encodings and nothing else. | `Codec.Spec.base64_encode_decode` |
+| Base 64 matches the test vectors of RFC 4648, section 10. | `Codec.Spec.base64_rfc4648_vectors` |
+| The table-driven CRC-32 equals the CRC-32 defined one bit at a time. | `Codec.Spec.crc32_eq` |
+| The CRC-32 of `123456789` is the standard check value `0xCBF43926`. | `Codec.Spec.crc32_check` |
+| A frame is the message followed by its CRC-32, low byte first. | `Codec.Spec.frame_layout` |
+| Unframing a frame gives back the message. | `Codec.Spec.unframe_frame` |
+| Unframing accepts nothing that is not a frame. | `Codec.Spec.frame_unframe` |
+| Percent-encoding keeps the unreserved characters of RFC 3986, section 2.3, and writes every other byte as `%` and two uppercase digits, as section 2.1 recommends. | `Codec.Spec.percent_encode_eq` |
+| Percent-decoding reads `%` and two hex digits (the `pct-encoded` rule of section 2.1), in either case, as one byte, and any other US-ASCII character but `%` as itself. It does not check which characters a URI allows, so a space or a control character reads as itself. It refuses a `%` without two hex digits after it, and any character outside US-ASCII, rather than passing them through. | `Codec.Spec.percent_decode_iff` |
+| Percent-decoding gives back what was encoded. | `Codec.Spec.percent_decode_encode` |
+| Percent-encoding matches the examples of RFC 3986, sections 2.1, 2.3, 2.5 and 6.2.2, and decodes once: `%252E` decodes to the text `%2E`, not to a dot. | `Codec.Spec.percent_vectors` |
+| PEM encoding writes the strict form of RFC 7468 (Figure 3): `-----BEGIN label-----`, the base 64 of the data in lines of 64 characters with the last at most 64, and `-----END label-----`, each line ending in LF. For empty data, which that form cannot express, it writes the BEGIN and END lines alone (see What is not proved). It refuses a label that the `label` rule of section 3 does not allow. | `Codec.Spec.pem_encode_iff` |
+| PEM decoding reads exactly one message in the strict form, or for empty data the BEGIN and END lines alone, with each line ending in LF, CR, or CR LF, and gives its label and data. So it refuses a different label on the END line, blanks, headers, text before or after the message, lines of another length, and base 64 that is not exactly the encoding of the data. | `Codec.Spec.pem_decode_iff` |
+| PEM decoding gives back the label and data that were encoded. | `Codec.Spec.pem_decode_encode` |
+| Luhn: `valid` decides the rule (every second digit from the right doubled, less 9 above 9, the sum a multiple of 10), and, for a payload of digits, the check digit is the one digit that makes it valid. | `Codec.Spec.luhn_valid_iff`, `Codec.Spec.luhn_checkDigit` |
+| Luhn catches any one digit typed wrong, and any two adjacent different digits typed in the wrong order, except 0 and 9. | `Codec.Spec.luhn_single_error`, `Codec.Spec.luhn_adjacent_swap` |
+| Among adjacent swaps, Luhn misses only one: an adjacent 0 and 9 swapped is never caught. | `Codec.Spec.luhn_swap_09` |
+| Luhn gives the common worked example, 79927398713, and a test card number. | `Codec.Spec.luhn_vectors` |
+| IBAN: `valid` decides the check of ISO 13616 by ISO 7064 MOD 97-10 (the shape, and the rearranged number mod 97), and `checkDigits` gives exactly the two digits from 02 to 98 that make an IBAN pass. | `Codec.Spec.iban_valid_iff`, `Codec.Spec.iban_checkDigits_iff` |
+| IBAN catches one digit typed for another or one letter for another, and two adjacent digits or two adjacent letters typed in the wrong order. | `Codec.Spec.iban_substitution`, `Codec.Spec.iban_adjacent_swap` |
+| IBAN gives the SWIFT registry's UK example and Germany's, France's and Norway's, and their check digits; and its blind spot: a letter and a digit swapped, `4B1` for `41B`, gives another IBAN that passes. | `Codec.Spec.iban_vectors` |
+| PEM encoding writes RFC 7468's Figure 15 exactly as the RFC prints it, and decoding reads it back with CR LF line ends; empty data, an empty label, labels the rule refuses, and texts the decoder refuses. | `Codec.Spec.pem_vectors` |
 
 The command-line tool in `Main.lean` calls these functions directly.
 
@@ -88,14 +88,14 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library, for PEM with an encoder and strict parser written in the script, and for Luhn and IBAN with the rules written in the script, on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for.
+`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Codec/Proofs/` proves exactly the statement in `Codec/Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean. The test script compares the tool with Python's standard library, for PEM with an encoder and strict parser written in the script, and for Luhn and IBAN with the rules written in the script, on a million inputs in all, from a recorded seed, and rewrites `tests/TEST-RESULTS.md`. Frames are compared with messages framed by `zlib.crc32`. Python 3.11.17, 3.12.3, and 3.13.17 give the same seed, count, and failures; they differ only in how many strict rejections each kind accounts for.
 
 ## Layout
 
 - `Codec/Hex.lean`, `Codec/Base64.lean`, `Codec/Crc32.lean`, `Codec/Percent.lean`, `Codec/Pem.lean`, `Codec/Luhn.lean`, `Codec/Iban.lean`: the code under proof.
-- `Spec.lean`: the statements, with `sorry` for proofs. A reviewer approves this file.
-- `Spec/Defs.lean`: the definitions the statements use, written from the standards, with checks against their test values.
-- `Proofs.lean` and `Proofs/`: the proofs, under the same names.
+- `Codec/Spec.lean`: the statements, with `sorry` for proofs. A reviewer approves this file.
+- `Codec/Spec/Defs.lean`: the definitions the statements use, written from the standards, with checks against their test values.
+- `Codec/Proofs.lean` and `Codec/Proofs/`: the proofs, under the same names.
 - `Main.lean`: the command-line tool the tests drive.
 - `lakefile.toml`: the build. It names the package and its version, its libraries and executable, and the default targets, and sets nothing else.
 - `comparator.json`: which theorems `lake comparator` checks, and which axioms it allows.

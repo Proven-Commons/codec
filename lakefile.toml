@@ -1,16 +1,18 @@
 name = "codec"
 version = "0.1.0"
 license = "Apache-2.0"
-defaultTargets = ["Codec", "Spec", "Proofs", "codec"]
+defaultTargets = ["Codec", "CodecSpec", "CodecProofs", "codec"]
 
 [[lean_lib]]
 name = "Codec"
 
 [[lean_lib]]
-name = "Spec"
+name = "CodecSpec"
+roots = ["Codec.Spec"]
 
 [[lean_lib]]
-name = "Proofs"
+name = "CodecProofs"
+roots = ["Codec.Proofs"]
 
 [[lean_exe]]
 name = "codec"

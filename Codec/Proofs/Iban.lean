@@ -1,10 +1,10 @@
 /-
-  Proofs of the Iban statements in `Spec.lean`, under the same names. The
+  Proofs of the Iban statements in `Codec/Spec.lean`, under the same names. The
   helper lemmas live in `Codec.Proofs.Iban`.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
@@ -18,20 +18,20 @@ theorem isDigit_iff (c : Char) : Iban.isDigit c = true ↔ 48 ≤ c.toNat ∧ c.
 theorem isUpper_iff (c : Char) : Iban.isUpper c = true ↔ 65 ≤ c.toNat ∧ c.toNat ≤ 90 := by
   simp [Iban.isUpper, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
 
-theorem ibanDigit_iff (c : Char) : Spec.ibanDigit c ↔ 48 ≤ c.toNat ∧ c.toNat ≤ 57 := by
-  simp [Spec.ibanDigit, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
+theorem ibanDigit_iff (c : Char) : Codec.Spec.ibanDigit c ↔ 48 ≤ c.toNat ∧ c.toNat ≤ 57 := by
+  simp [Codec.Spec.ibanDigit, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
 
-theorem ibanLetter_iff (c : Char) : Spec.ibanLetter c ↔ 65 ≤ c.toNat ∧ c.toNat ≤ 90 := by
-  simp [Spec.ibanLetter, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
+theorem ibanLetter_iff (c : Char) : Codec.Spec.ibanLetter c ↔ 65 ≤ c.toNat ∧ c.toNat ≤ 90 := by
+  simp [Codec.Spec.ibanLetter, Char.le_def, UInt32.le_iff_toNat_le, Char.toNat_val]
 
-theorem isDigit_digit (c : Char) : Iban.isDigit c = true ↔ Spec.ibanDigit c := by
+theorem isDigit_digit (c : Char) : Iban.isDigit c = true ↔ Codec.Spec.ibanDigit c := by
   rw [isDigit_iff, ibanDigit_iff]
 
-theorem isUpper_letter (c : Char) : Iban.isUpper c = true ↔ Spec.ibanLetter c := by
+theorem isUpper_letter (c : Char) : Iban.isUpper c = true ↔ Codec.Spec.ibanLetter c := by
   rw [isUpper_iff, ibanLetter_iff]
 
-theorem ibanValue_eq (c : Char) : Spec.ibanValue c = Iban.value c := by
-  simp [Spec.ibanValue, Iban.value, Iban.isDigit]
+theorem ibanValue_eq (c : Char) : Codec.Spec.ibanValue c = Iban.value c := by
+  simp [Codec.Spec.ibanValue, Iban.value, Iban.isDigit]
 
 theorem not_digit_of_upper (c : Char) (h : Iban.isUpper c = true) : Iban.isDigit c = false := by
   have := (isUpper_iff c).mp h
@@ -162,7 +162,7 @@ theorem wellShaped_cons4 (c0 c1 k0 k1 : Char) (bban : List Char) :
   simp only [Iban.wellShaped, Bool.and_eq_true, decide_eq_true_eq, List.all_eq_true,
     Bool.or_eq_true, and_assoc]
 
-theorem shape_iff (s : List Char) : Iban.wellShaped s = true ↔ Spec.IbanShape s := by
+theorem shape_iff (s : List Char) : Iban.wellShaped s = true ↔ Codec.Spec.IbanShape s := by
   constructor
   · intro hs
     match s, hs with
@@ -197,8 +197,8 @@ theorem rot_ok (s : List Char) (hs : Iban.wellShaped s = true) :
   | [], hs | [_], hs | [_, _], hs | [_, _, _], hs => simp [Iban.wellShaped] at hs
 
 theorem digits_step (c : Char) (hc : Iban.isDigit c = true ∨ Iban.isUpper c = true) (n : Nat) :
-    (Spec.ibanDigits c).foldl (fun n d => 10 * n + d) n = step n c := by
-  simp only [Spec.ibanDigits, ibanValue_eq, step]
+    (Codec.Spec.ibanDigits c).foldl (fun n d => 10 * n + d) n = step n c := by
+  simp only [Codec.Spec.ibanDigits, ibanValue_eq, step]
   rcases hc with hc | hc
   · have := (isDigit_iff c).mp hc
     rw [pw_of_digit c hc, value_of_digit c hc, ite_eq_left (by omega)]
@@ -212,10 +212,10 @@ theorem digits_step (c : Char) (hc : Iban.isDigit c = true ∨ Iban.isUpper c = 
 
 theorem ibanNumber_eq (cs : List Char)
     (h : ∀ c ∈ cs, Iban.isDigit c = true ∨ Iban.isUpper c = true) :
-    Spec.ibanNumber cs = num cs := by
-  unfold Spec.ibanNumber Spec.decimal num
+    Codec.Spec.ibanNumber cs = num cs := by
+  unfold Codec.Spec.ibanNumber Codec.Spec.decimal num
   rw [List.foldl_flatMap]
-  suffices ∀ n, cs.foldl (fun acc x => (Spec.ibanDigits x).foldl (fun n d => 10 * n + d) acc) n =
+  suffices ∀ n, cs.foldl (fun acc x => (Codec.Spec.ibanDigits x).foldl (fun n d => 10 * n + d) acc) n =
       cs.foldl step n from this 0
   induction cs with
   | nil => intro n; rfl
@@ -250,7 +250,7 @@ theorem rot_block (l m r : List Char) (h : l.length + m.length ≤ 4 ∨ 4 ≤ l
 
 /-- Characters of the same kind that differ: equal shift, different values. -/
 theorem kind_cases (a b : Char) (hab : a ≠ b)
-    (hkind : (Spec.ibanDigit a ∧ Spec.ibanDigit b) ∨ (Spec.ibanLetter a ∧ Spec.ibanLetter b)) :
+    (hkind : (Codec.Spec.ibanDigit a ∧ Codec.Spec.ibanDigit b) ∨ (Codec.Spec.ibanLetter a ∧ Codec.Spec.ibanLetter b)) :
     ((pw a = 10 ∧ pw b = 10 ∧ Iban.value a < 10 ∧ Iban.value b < 10) ∨
       (pw a = 100 ∧ pw b = 100)) ∧
       Iban.value a ≠ Iban.value b ∧ Iban.value a < 36 ∧ Iban.value b < 36 := by
@@ -268,9 +268,9 @@ theorem kind_cases (a b : Char) (hab : a ≠ b)
       value_of_not_digit b db]
     omega
 
-theorem valid_spec (s : List Char) : Iban.valid s = true ↔ Spec.IbanValid s := by
+theorem valid_spec (s : List Char) : Iban.valid s = true ↔ Codec.Spec.IbanValid s := by
   rw [valid_iff_num]
-  unfold Spec.IbanValid
+  unfold Codec.Spec.IbanValid
   rw [← shape_iff]
   constructor
   · rintro ⟨hs, hm⟩
@@ -291,12 +291,12 @@ theorem num_two (d1 d2 : Char) (h1 : Iban.isDigit d1 = true) (h2 : Iban.isDigit 
 
 theorem zz_digit : Iban.isDigit '0' = true := by decide
 
-/-- `Spec.iban_checkDigits_iff` for a country code of two characters. -/
+/-- `Codec.Spec.iban_checkDigits_iff` for a country code of two characters. -/
 theorem checkDigits_iff_of_length (country bban ck : List Char) (hc : country.length = 2) :
     Iban.checkDigits country bban = some ck ↔
-      ck.length = 2 ∧ (∀ c ∈ ck, Spec.ibanDigit c) ∧
-        2 ≤ Spec.ibanNumber ck ∧ Spec.ibanNumber ck ≤ 98 ∧
-          Spec.IbanValid (country ++ ck ++ bban) := by
+      ck.length = 2 ∧ (∀ c ∈ ck, Codec.Spec.ibanDigit c) ∧
+        2 ≤ Codec.Spec.ibanNumber ck ∧ Codec.Spec.ibanNumber ck ≤ 98 ∧
+          Codec.Spec.IbanValid (country ++ ck ++ bban) := by
   match country, hc with
   | [c0, c1], _ =>
   have h00 : num (bban ++ [c0, c1] ++ ['0', '0']) = num (bban ++ [c0, c1]) * 100 := by
@@ -333,7 +333,7 @@ theorem checkDigits_iff_of_length (country bban ck : List Char) (hc : country.le
         · exact dq
         · exact dt
       obtain ⟨n2, p2⟩ := num_two _ _ dq dt
-      have hn : Spec.ibanNumber [Char.ofNat (48 + (98 - num (bban ++ [c0, c1]) * 100 % 97) / 10),
+      have hn : Codec.Spec.ibanNumber [Char.ofNat (48 + (98 - num (bban ++ [c0, c1]) * 100 % 97) / 10),
           Char.ofNat (48 + (98 - num (bban ++ [c0, c1]) * 100 % 97) % 10)] =
           98 - num (bban ++ [c0, c1]) * 100 % 97 := by
         rw [ibanNumber_eq _ (fun c hc => Or.inl (hok c hc)), n2, value_of_digit _ dq,
@@ -376,14 +376,14 @@ end Codec.Proofs.Iban
 
 open Codec.Proofs.Iban
 
-theorem Spec.iban_valid_iff (s : List Char) : Iban.valid s = true ↔ Spec.IbanValid s :=
+theorem Codec.Spec.iban_valid_iff (s : List Char) : Iban.valid s = true ↔ Codec.Spec.IbanValid s :=
   valid_spec s
 
-theorem Spec.iban_checkDigits_iff (country bban ck : List Char) :
+theorem Codec.Spec.iban_checkDigits_iff (country bban ck : List Char) :
     Iban.checkDigits country bban = some ck ↔
-      country.length = 2 ∧ ck.length = 2 ∧ (∀ c ∈ ck, Spec.ibanDigit c) ∧
-        2 ≤ Spec.ibanNumber ck ∧ Spec.ibanNumber ck ≤ 98 ∧
-          Spec.IbanValid (country ++ ck ++ bban) := by
+      country.length = 2 ∧ ck.length = 2 ∧ (∀ c ∈ ck, Codec.Spec.ibanDigit c) ∧
+        2 ≤ Codec.Spec.ibanNumber ck ∧ Codec.Spec.ibanNumber ck ≤ 98 ∧
+          Codec.Spec.IbanValid (country ++ ck ++ bban) := by
   by_cases hc : country.length = 2
   · simp only [hc, true_and]
     exact checkDigits_iff_of_length country bban ck hc
@@ -391,9 +391,9 @@ theorem Spec.iban_checkDigits_iff (country bban ck : List Char) :
     unfold Iban.checkDigits
     simp [hc]
 
-theorem Spec.iban_substitution (l r : List Char) (a b : Char)
+theorem Codec.Spec.iban_substitution (l r : List Char) (a b : Char)
     (h : Iban.valid (l ++ a :: r) = true) (hab : a ≠ b)
-    (hkind : (Spec.ibanDigit a ∧ Spec.ibanDigit b) ∨ (Spec.ibanLetter a ∧ Spec.ibanLetter b)) :
+    (hkind : (Codec.Spec.ibanDigit a ∧ Codec.Spec.ibanDigit b) ∨ (Codec.Spec.ibanLetter a ∧ Codec.Spec.ibanLetter b)) :
     Iban.valid (l ++ b :: r) = false := by
   obtain ⟨_, h1⟩ := (valid_iff_num _).mp h
   obtain ⟨hp, hv, ha, hb⟩ := kind_cases a b hab hkind
@@ -410,9 +410,9 @@ theorem Spec.iban_substitution (l r : List Char) (a b : Char)
   have h4 := cancel_pws R _ _ h3
   omega
 
-theorem Spec.iban_adjacent_swap (l r : List Char) (a b : Char)
+theorem Codec.Spec.iban_adjacent_swap (l r : List Char) (a b : Char)
     (h : Iban.valid (l ++ a :: b :: r) = true) (hab : a ≠ b)
-    (hkind : (Spec.ibanDigit a ∧ Spec.ibanDigit b) ∨ (Spec.ibanLetter a ∧ Spec.ibanLetter b)) :
+    (hkind : (Codec.Spec.ibanDigit a ∧ Codec.Spec.ibanDigit b) ∨ (Codec.Spec.ibanLetter a ∧ Codec.Spec.ibanLetter b)) :
     Iban.valid (l ++ b :: a :: r) = false := by
   obtain ⟨hs, h1⟩ := (valid_iff_num _).mp h
   obtain ⟨hp, hv, ha, hb⟩ := kind_cases a b hab hkind
@@ -473,7 +473,7 @@ theorem Spec.iban_adjacent_swap (l r : List Char) (a b : Char)
       have h4 := cancel_pws R _ _ h3
       omega
 
-theorem Spec.iban_vectors :
+theorem Codec.Spec.iban_vectors :
     Iban.valid "GB29NWBK60161331926819".toList = true ∧
     Iban.valid "DE89370400440532013000".toList = true ∧
     Iban.valid "FR1420041010050500013M02606".toList = true ∧

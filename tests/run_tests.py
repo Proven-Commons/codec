@@ -11,7 +11,7 @@ for the `CERTIFICATE` label, and for other labels an encoder and a strict
 parser written here from the ABNF of RFC 7468, section 3, with the base
 64 checked by strict `binascii.a2b_base64`. `unquote_to_bytes` passes a bad escape
 through as text, where RFC 3986 has none, so text is first checked
-against what `Spec.PctReads` accepts, as a regular expression, and only
+against what `Codec.Spec.PctReads` accepts, as a regular expression, and only
 text that matches is given to it; the rest must be refused. Inputs come from
 a recorded seed:
 
@@ -224,7 +224,7 @@ def oracle_b64decode(text):
         return None
 
 
-# What `Spec.PctReads` accepts, as a regular expression: each piece is `%`
+# What `Codec.Spec.PctReads` accepts, as a regular expression: each piece is `%`
 # and two hex digits (the `pct-encoded` rule of RFC 3986, section 2.1),
 # or a US-ASCII character other than `%`.
 PCT_TEXT = re.compile(r"(?:%[0-9A-Fa-f]{2}|[\x00-\x24\x26-\x7f])*")

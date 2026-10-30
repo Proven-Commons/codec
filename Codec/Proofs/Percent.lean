@@ -1,11 +1,11 @@
 /-
-  Proofs of the percent-encoding statements in `Spec.lean`, under the
+  Proofs of the percent-encoding statements in `Codec/Spec.lean`, under the
   same names. The helper lemmas live in `Codec.Proofs.Percent`.
 -/
 
 import Codec
-import Spec.Defs
-import Proofs.Hex
+import Codec.Spec.Defs
+import Codec.Proofs.Hex
 
 open Codec
 
@@ -14,9 +14,9 @@ namespace Codec.Proofs.Percent
 open Codec.Proofs.Hex
 
 /-- `Percent.unreserved` picks out exactly the characters of
-    `Spec.unreservedChars`. -/
+    `Codec.Spec.unreservedChars`. -/
 theorem unreserved_fin : ∀ b : Fin 256,
-    Percent.unreserved b.val.toUInt8 = true ↔ Char.ofNat b.val ∈ Spec.unreservedChars := by
+    Percent.unreserved b.val.toUInt8 = true ↔ Char.ofNat b.val ∈ Codec.Spec.unreservedChars := by
   decide +kernel
 
 /-- An unreserved byte is an ASCII character other than `%`, whose code is the byte. -/
@@ -25,14 +25,14 @@ theorem unreserved_char_fin : ∀ b : Fin 256, Percent.unreserved b.val.toUInt8 
       (Char.ofNat b.val).toNat.toUInt8 = b.val.toUInt8 := by
   decide +kernel
 
-theorem upper_fin : ∀ n : Fin 16, Percent.upper n.val = Spec.upperHexDigits.getD n.val '?' := by
+theorem upper_fin : ∀ n : Fin 16, Percent.upper n.val = Codec.Spec.upperHexDigits.getD n.val '?' := by
   decide
 
-theorem lower_upper_fin : ∀ n : Fin 16, Spec.asciiLower (Percent.upper n.val) = Spec.hexDigit n.val := by
+theorem lower_upper_fin : ∀ n : Fin 16, Codec.Spec.asciiLower (Percent.upper n.val) = Codec.Spec.hexDigit n.val := by
   decide
 
 theorem unreserved_iff (b : UInt8) :
-    Percent.unreserved b = true ↔ Char.ofNat b.toNat ∈ Spec.unreservedChars := by
+    Percent.unreserved b = true ↔ Char.ofNat b.toNat ∈ Codec.Spec.unreservedChars := by
   have := unreserved_fin ⟨b.toNat, b.toNat_lt⟩
   simpa using this
 
@@ -43,17 +43,17 @@ theorem unreserved_char (b : UInt8) (h : Percent.unreserved b = true) :
   simp only [Nat.toUInt8_eq, UInt8.ofNat_toNat] at this
   simpa using this h
 
-theorem upper_eq (n : Nat) (h : n < 16) : Percent.upper n = Spec.upperHexDigits.getD n '?' :=
+theorem upper_eq (n : Nat) (h : n < 16) : Percent.upper n = Codec.Spec.upperHexDigits.getD n '?' :=
   upper_fin ⟨n, h⟩
 
-theorem lower_upper (n : Nat) (h : n < 16) : Spec.asciiLower (Percent.upper n) = Spec.hexDigit n :=
+theorem lower_upper (n : Nat) (h : n < 16) : Codec.Spec.asciiLower (Percent.upper n) = Codec.Spec.hexDigit n :=
   lower_upper_fin ⟨n, h⟩
 
 theorem encode_cons (b : UInt8) (bs : List UInt8) :
-    Percent.encode (b :: bs) = Spec.pctByte b ++ Percent.encode bs := by
+    Percent.encode (b :: bs) = Codec.Spec.pctByte b ++ Percent.encode bs := by
   have h1 : b.toNat / 16 < 16 := by have := b.toNat_lt; omega
   have h2 : b.toNat % 16 < 16 := Nat.mod_lt _ (by decide)
-  rw [Percent.encode, Spec.pctByte]
+  rw [Percent.encode, Codec.Spec.pctByte]
   by_cases hu : Percent.unreserved b = true
   · rw [ite_eq_left hu, ite_eq_left ((unreserved_iff b).mp hu)]
     rfl
@@ -61,13 +61,13 @@ theorem encode_cons (b : UInt8) (bs : List UInt8) :
     rfl
 
 theorem decode_reads (cs : List Char) (bs : List UInt8) :
-    Percent.decode cs = some bs → Spec.PctReads cs bs := by
+    Percent.decode cs = some bs → Codec.Spec.PctReads cs bs := by
   induction cs using Percent.decode.induct generalizing bs with
   | case1 =>
     intro hd
     rw [Percent.decode.eq_1] at hd
     cases hd
-    exact Spec.PctReads.nil
+    exact Codec.Spec.PctReads.nil
   | case2 hi lo rest h l tail hrest hl hh ih =>
     intro hd
     rw [Percent.decode.eq_2, hh, hl, hrest] at hd
@@ -79,7 +79,7 @@ theorem decode_reads (cs : List Char) (bs : List UInt8) :
       rw [byte_toNat h l h16 l16]; omega
     have e2 : (h * 16 + l).toUInt8.toNat % 16 = l := by
       rw [byte_toNat h l h16 l16]; omega
-    refine Spec.PctReads.escape ?_ ?_ (ih tail hrest)
+    refine Codec.Spec.PctReads.escape ?_ ?_ (ih tail hrest)
     · rw [e1, eh, digit_hexDigit h h16]
     · rw [e2, el, digit_hexDigit l l16]
   | case3 hi lo rest hne ih =>
@@ -101,13 +101,13 @@ theorem decode_reads (cs : List Char) (bs : List UInt8) :
       rw [hr] at hd
       injection hd with hd
       subst hd
-      exact Spec.PctReads.char hne2 hlt (ih tail hr)
+      exact Codec.Spec.PctReads.char hne2 hlt (ih tail hr)
   | case6 c rest hne1 hne2 hlt =>
     intro hd
     rw [Percent.decode.eq_4 c rest hne1 hne2, ite_eq_right hlt] at hd
     cases hd
 
-theorem reads_decode (cs : List Char) (bs : List UInt8) (h : Spec.PctReads cs bs) :
+theorem reads_decode (cs : List Char) (bs : List UInt8) (h : Codec.Spec.PctReads cs bs) :
     Percent.decode cs = some bs := by
   induction h with
   | nil => rw [Percent.decode.eq_1]
@@ -124,57 +124,57 @@ theorem reads_decode (cs : List Char) (bs : List UInt8) (h : Spec.PctReads cs bs
     rw [Percent.decode.eq_4 c rest (fun _ _ _ h _ => hne h) hne, ite_eq_left hlt, ih]
     rfl
 
-theorem encode_reads (bs : List UInt8) : Spec.PctReads (Percent.encode bs) bs := by
+theorem encode_reads (bs : List UInt8) : Codec.Spec.PctReads (Percent.encode bs) bs := by
   induction bs with
-  | nil => exact Spec.PctReads.nil
+  | nil => exact Codec.Spec.PctReads.nil
   | cons b bs ih =>
     rw [Percent.encode]
     by_cases hu : Percent.unreserved b = true
     · rw [ite_eq_left hu]
       obtain ⟨hne, hlt, hb⟩ := unreserved_char b hu
-      have := Spec.PctReads.char hne hlt ih
+      have := Codec.Spec.PctReads.char hne hlt ih
       rwa [hb] at this
     · rw [ite_eq_right hu]
       have h1 : b.toNat / 16 < 16 := by have := b.toNat_lt; omega
       have h2 : b.toNat % 16 < 16 := Nat.mod_lt _ (by decide)
-      exact Spec.PctReads.escape (lower_upper _ h1) (lower_upper _ h2) ih
+      exact Codec.Spec.PctReads.escape (lower_upper _ h1) (lower_upper _ h2) ih
 
 end Codec.Proofs.Percent
 
 open Codec.Proofs.Percent
 
-theorem Spec.percent_encode_eq (bs : List UInt8) :
-    Percent.encode bs = Spec.pctEncode bs := by
+theorem Codec.Spec.percent_encode_eq (bs : List UInt8) :
+    Percent.encode bs = Codec.Spec.pctEncode bs := by
   induction bs with
   | nil => rfl
   | cons b bs ih =>
-    rw [encode_cons, ih, Spec.pctEncode, Spec.pctEncode, List.map_cons, List.flatten_cons]
+    rw [encode_cons, ih, Codec.Spec.pctEncode, Codec.Spec.pctEncode, List.map_cons, List.flatten_cons]
 
-theorem Spec.percent_decode_iff (cs : List Char) (bs : List UInt8) :
-    Percent.decode cs = some bs ↔ Spec.PctReads cs bs :=
+theorem Codec.Spec.percent_decode_iff (cs : List Char) (bs : List UInt8) :
+    Percent.decode cs = some bs ↔ Codec.Spec.PctReads cs bs :=
   ⟨decode_reads cs bs, reads_decode cs bs⟩
 
-theorem Spec.percent_decode_encode (bs : List UInt8) :
+theorem Codec.Spec.percent_decode_encode (bs : List UInt8) :
     Percent.decode (Percent.encode bs) = some bs :=
   reads_decode _ _ (encode_reads bs)
 
-theorem Spec.percent_vectors :
+theorem Codec.Spec.percent_vectors :
     Percent.encode [0x20] = "%20".toList ∧
-    Percent.encode (Spec.ascii "A") = "A".toList ∧
+    Percent.encode (Codec.Spec.ascii "A") = "A".toList ∧
     Percent.encode [0xC3, 0x80] = "%C3%80".toList ∧
     Percent.encode [0xE3, 0x82, 0xA2] = "%E3%82%A2".toList ∧
-    Percent.encode (Spec.ascii "-._~") = "-._~".toList ∧
-    Percent.encode (Spec.ascii "Laguna Beach") = "Laguna%20Beach".toList ∧
-    Percent.encode (Spec.ascii "%:/?#[]@!$&'()*+,;=") =
+    Percent.encode (Codec.Spec.ascii "-._~") = "-._~".toList ∧
+    Percent.encode (Codec.Spec.ascii "Laguna Beach") = "Laguna%20Beach".toList ∧
+    Percent.encode (Codec.Spec.ascii "%:/?#[]@!$&'()*+,;=") =
       "%25%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D".toList ∧
     Percent.decode "%C3%80".toList = some [0xC3, 0x80] ∧
     Percent.decode "%e3%82%a2".toList = some [0xE3, 0x82, 0xA2] ∧
-    Percent.decode "%7E".toList = some (Spec.ascii "~") ∧
-    Percent.decode "%63/%7bfoo%7d".toList = some (Spec.ascii "c/{foo}") ∧
-    Percent.decode "%3a".toList = some (Spec.ascii ":") ∧
-    Percent.decode "%3A".toList = some (Spec.ascii ":") ∧
-    Percent.decode "a+b c".toList = some (Spec.ascii "a+b c") ∧
-    Percent.decode "%252E".toList = some (Spec.ascii "%2E") ∧
+    Percent.decode "%7E".toList = some (Codec.Spec.ascii "~") ∧
+    Percent.decode "%63/%7bfoo%7d".toList = some (Codec.Spec.ascii "c/{foo}") ∧
+    Percent.decode "%3a".toList = some (Codec.Spec.ascii ":") ∧
+    Percent.decode "%3A".toList = some (Codec.Spec.ascii ":") ∧
+    Percent.decode "a+b c".toList = some (Codec.Spec.ascii "a+b c") ∧
+    Percent.decode "%252E".toList = some (Codec.Spec.ascii "%2E") ∧
     Percent.decode "%".toList = none ∧
     Percent.decode "%2".toList = none ∧
     Percent.decode "%zz".toList = none ∧

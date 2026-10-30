@@ -1,9 +1,9 @@
 /-
-  Proofs of the Base64 statements in `Spec.lean`, under the same names.
+  Proofs of the Base64 statements in `Codec/Spec.lean`, under the same names.
 -/
 
 import Codec
-import Spec.Defs
+import Codec.Spec.Defs
 
 open Codec
 
@@ -13,12 +13,12 @@ theorem charLe (a c : Char) : a ≤ c ↔ a.toNat ≤ c.toNat := by
   simp [Char.le_def, UInt32.le_iff_toNat_le]
 
 set_option maxRecDepth 10000 in
-theorem char_tbl : ∀ n : Fin 64, Base64.char n.val = Spec.base64Char n.val := by decide +kernel
+theorem char_tbl : ∀ n : Fin 64, Base64.char n.val = Codec.Spec.base64Char n.val := by decide +kernel
 set_option maxRecDepth 10000 in
 theorem value_tbl : ∀ n : Fin 64, Base64.value (Base64.char n.val) = some n.val := by
   decide +kernel
 
-theorem char_eq {n : Nat} (h : n < 64) : Base64.char n = Spec.base64Char n :=
+theorem char_eq {n : Nat} (h : n < 64) : Base64.char n = Codec.Spec.base64Char n :=
   char_tbl ⟨n, h⟩
 
 theorem value_char {n : Nat} (h : n < 64) : Base64.value (Base64.char n) = some n :=
@@ -94,19 +94,19 @@ end Codec.Proofs.Base64
 
 open Codec.Proofs.Base64
 
-theorem Spec.base64_encode_nil : Base64.encode [] = [] := by
+theorem Codec.Spec.base64_encode_nil : Base64.encode [] = [] := by
   simp [Base64.encode]
 
 /-- Three bytes, the first in the high bits, form one group. -/
-theorem Spec.base64_encode_three (a b c : UInt8) (rest : List UInt8) :
+theorem Codec.Spec.base64_encode_three (a b c : UInt8) (rest : List UInt8) :
     Base64.encode (a :: b :: c :: rest) =
-      Spec.base64Group (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8 + c.toNat) ++
+      Codec.Spec.base64Group (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8 + c.toNat) ++
         Base64.encode rest := by
   rw [Base64.encode.eq_1]
   have ha := a.toNat_lt
   have hb := b.toNat_lt
   have hc := c.toNat_lt
-  simp only [Spec.base64Group, List.cons_append, List.nil_append]
+  simp only [Codec.Spec.base64Group, List.cons_append, List.nil_append]
   have e1 : (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8 + c.toNat) / 2 ^ 18 % 64 =
       (a.toNat * 65536 + b.toNat * 256 + c.toNat) / 262144 := by omega
   have e2 : (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8 + c.toNat) / 2 ^ 12 % 64 =
@@ -120,13 +120,13 @@ theorem Spec.base64_encode_three (a b c : UInt8) (rest : List UInt8) :
 
 /-- Two final bytes: zero bits fill the group, which is cut to three
     characters and padded with one `=`. -/
-theorem Spec.base64_encode_two (a b : UInt8) :
+theorem Codec.Spec.base64_encode_two (a b : UInt8) :
     Base64.encode [a, b] =
-      (Spec.base64Group (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8)).take 3 ++ ['='] := by
+      (Codec.Spec.base64Group (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8)).take 3 ++ ['='] := by
   rw [Base64.encode.eq_2]
   have ha := a.toNat_lt
   have hb := b.toNat_lt
-  simp only [Spec.base64Group, List.take, List.cons_append, List.nil_append]
+  simp only [Codec.Spec.base64Group, List.take, List.cons_append, List.nil_append]
   have e1 : (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8) / 2 ^ 18 % 64 =
       (a.toNat * 65536 + b.toNat * 256) / 262144 := by omega
   have e2 : (a.toNat * 2 ^ 16 + b.toNat * 2 ^ 8) / 2 ^ 12 % 64 =
@@ -137,17 +137,17 @@ theorem Spec.base64_encode_two (a b : UInt8) :
 
 /-- One final byte: the group is cut to two characters and padded with
     `==`. -/
-theorem Spec.base64_encode_one (a : UInt8) :
-    Base64.encode [a] = (Spec.base64Group (a.toNat * 2 ^ 16)).take 2 ++ ['=', '='] := by
+theorem Codec.Spec.base64_encode_one (a : UInt8) :
+    Base64.encode [a] = (Codec.Spec.base64Group (a.toNat * 2 ^ 16)).take 2 ++ ['=', '='] := by
   rw [Base64.encode.eq_3]
   have ha := a.toNat_lt
-  simp only [Spec.base64Group, List.take, List.cons_append, List.nil_append]
+  simp only [Codec.Spec.base64Group, List.take, List.cons_append, List.nil_append]
   have e1 : (a.toNat * 2 ^ 16) / 2 ^ 18 % 64 = (a.toNat * 65536) / 262144 := by omega
   have e2 : (a.toNat * 2 ^ 16) / 2 ^ 12 % 64 = (a.toNat * 65536) / 4096 % 64 := by omega
   rw [e1, e2, char_eq (by omega), char_eq (by omega)]
 
 /-- Decoding gives back what was encoded. -/
-theorem Spec.base64_decode_encode (bs : List UInt8) :
+theorem Codec.Spec.base64_decode_encode (bs : List UInt8) :
     Base64.decode (Base64.encode bs) = some bs := by
   induction bs using Base64.encode.induct with
   | case1 a b c rest ih =>
@@ -180,7 +180,7 @@ theorem Spec.base64_decode_encode (bs : List UInt8) :
   | case4 => rfl
 
 /-- Decoding is strict: whatever it accepts is exactly an encoding. -/
-theorem Spec.base64_encode_decode (cs : List Char) (bs : List UInt8) :
+theorem Codec.Spec.base64_encode_decode (cs : List Char) (bs : List UInt8) :
     Base64.decode cs = some bs → Base64.encode bs = cs := by
   induction cs using Base64.decode.induct generalizing bs with
   | case1 =>
@@ -268,12 +268,12 @@ theorem Spec.base64_encode_decode (cs : List Char) (bs : List UInt8) :
     cases h
 
 /-- The test vectors of RFC 4648, section 10. -/
-theorem Spec.base64_rfc4648_vectors :
-    Base64.encode (Spec.ascii "") = "".toList ∧
-    Base64.encode (Spec.ascii "f") = "Zg==".toList ∧
-    Base64.encode (Spec.ascii "fo") = "Zm8=".toList ∧
-    Base64.encode (Spec.ascii "foo") = "Zm9v".toList ∧
-    Base64.encode (Spec.ascii "foob") = "Zm9vYg==".toList ∧
-    Base64.encode (Spec.ascii "fooba") = "Zm9vYmE=".toList ∧
-    Base64.encode (Spec.ascii "foobar") = "Zm9vYmFy".toList := by
+theorem Codec.Spec.base64_rfc4648_vectors :
+    Base64.encode (Codec.Spec.ascii "") = "".toList ∧
+    Base64.encode (Codec.Spec.ascii "f") = "Zg==".toList ∧
+    Base64.encode (Codec.Spec.ascii "fo") = "Zm8=".toList ∧
+    Base64.encode (Codec.Spec.ascii "foo") = "Zm9v".toList ∧
+    Base64.encode (Codec.Spec.ascii "foob") = "Zm9vYg==".toList ∧
+    Base64.encode (Codec.Spec.ascii "fooba") = "Zm9vYmE=".toList ∧
+    Base64.encode (Codec.Spec.ascii "foobar") = "Zm9vYmFy".toList := by
   decide +kernel
