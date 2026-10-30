@@ -423,9 +423,10 @@ def forged_check(country, check, bban):
             return country + check + bban + f"{n:02d}"
 
 
-# Strings whose mod-97 sum passes but whose shape does not, and the
-# edges of the BBAN's length, so only the shape decides; and letters in
-# the check-digit places.
+# Shape and BBAN length edges, including lowercase text and letters in
+# the check-digit places. `forged` uses Python base-36 conversion, which
+# folds lowercase; those lowercase strings need not have remainder 1
+# under Lean's uppercase-only value function.
 IBAN_SHAPE_EDGES = [forged("G1", "2345"), forged("1B", "2345"), forged("gb", "NWBK60161331926819"),
                     forged("GB", "nwbk1234"), forged("GB", ""), forged("GB", "A"),
                     forged("GB", "A" * 30), forged("GB", "A" * 31), forged("GB", "1" * 30),
@@ -655,6 +656,13 @@ def fixed_cases():
                           pem_encoded(label, data), None, False))
             text = oracle_pem_encode(label, data) or f"-----BEGIN {label}-----\n-----END {label}-----\n"
             items.append(("pemdec", f"pemdec {text_nums(text)}", pem_decoded(text), None, False))
+    # Standard-form empty payload and concatenated messages are outside
+    # this decoder's single-message strict form.
+    for text in ("-----BEGIN X-----\n\n-----END X-----\n",
+                 "-----BEGIN X-----\nAA==\n-----END X-----\n" * 2):
+        items.append(("pemdec refusal", f"pemdec {text_nums(text)}", "none", None, False))
+    for digits, answer in (("0" * 1000 + "1", "01"), ("0" * 1000, "00")):
+        items.append(("leading zeros", f"hexenc {digits}", answer, None, False))
     for c in range(128):
         text = chr(c)
         items.append(("pctdec", f"pctdec {text_nums(text)}", decoded(oracle_pctdec(text)), None, False))

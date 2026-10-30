@@ -52,13 +52,15 @@ import Codec
 
 open Codec
 
-/-- A number in plain decimal digits. Longer numbers than any byte or
-    character code are refused before they are converted, since that
-    takes time quadratic in their length. -/
+/-- A number in plain decimal digits. Leading zeros are accepted and
+    removed before conversion. At most seven significant digits are
+    converted, bounding the quadratic decimal conversion cost. -/
 def number (t : String) : Option Nat :=
   let ds := t.toList
-  if ds.isEmpty || !ds.all Char.isDigit || (ds.dropWhile (· = '0')).length > 7 then none
-  else t.toNat?
+  let significant := ds.dropWhile (· = '0')
+  if ds.isEmpty || !ds.all Char.isDigit || significant.length > 7 then none
+  else if significant.isEmpty then some 0
+  else (String.ofList significant).toNat?
 
 /-- The comma-separated numbers in `s`. -/
 def numbers (s : String) : Option (List Nat) :=
